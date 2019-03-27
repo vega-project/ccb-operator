@@ -1,0 +1,62 @@
+kind: List
+apiVersion: v1
+items:
+- kind: ClusterRole
+  apiVersion: rbac.authorization.k8s.io/v1beta1
+  metadata:
+    name: pod-access
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - pods
+      verbs:
+        - get
+        - list
+        - create
+        - delete
+        - update
+        - patch
+        - watch
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: dispatcher
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: dispatcher-calculations
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: calculations-access
+  subjects:
+  - kind: ServiceAccount
+    name: dispatcher
+    namespace: vega
+
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: dispatcher-endpoints
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: endpoints-access
+  subjects:
+  - kind: ServiceAccount
+    name: dispatcher
+    namespace: vega
+
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: dispatcher-pods
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: pod-access
+  subjects:
+  - kind: ServiceAccount
+    name: dispatcher
+    namespace: vega

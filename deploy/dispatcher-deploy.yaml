@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatcher
+  labels:
+    app: dispatcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dispatcher
+  template:
+    metadata:
+      labels:
+        app: dispatcher
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: "true"
+      serviceAccount: dispatcher
+      serviceAccountName: dispatcher
+      containers:
+      - name: dispatcher
+        image: docker-registry.default.svc:5000/vega/dispatcher
+        commands: /usr/bin/dispatcher
+        args:
+          - --namespace=vega
+          - --redis-url=10.128.0.201:6379 # temp: TODO: point to service

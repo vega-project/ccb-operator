@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: vega-worker
+spec:
+  selector:
+      matchLabels:
+        name: vega-worker
+  template:
+    metadata:
+      labels:
+        name: vega-worker 
+    spec:
+      nodeSelector: 
+        node-role.kubernetes.io/vega-worker: "true"
+      containers:
+      - image: docker-registry.default.svc:5000/vega/worker
+        imagePullPolicy: Always
+        name: vega-worker
+        commands: 
+          - /usr/bin/worker
+        args:
+          - --nfs-path=/nfs
+          - --atlas-control-files-path=/nfs/atlas-control-files
+          - --atlas-data-files-path=/nfs/atlas-data-files
+          - --kuruz-model-template-file=kurucz_model_file_template.mod
+          - --synspec-input-template-file=input_tlusty_fortfive_template
+        volumeMounts:
+        - mountPath: /nfs
+          name: calculations
+      volumes:
+      - name: calculations
+        persistentVolumeClaim:
+          claimName: results-nfs-claim          
+        terminationMessagePath: /dev/termination-log
+      serviceAccount: vega-worker
+      terminationGracePeriodSeconds: 10

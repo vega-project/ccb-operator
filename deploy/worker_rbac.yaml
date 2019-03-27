@@ -1,0 +1,19 @@
+kind: List
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: vega-worker
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: vega-worker
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: calculations-access
+  subjects:
+  - kind: ServiceAccount
+    name: vega-worker
+    namespace: vega

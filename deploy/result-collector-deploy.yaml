@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: result-collector
+  labels:
+    app: result-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: result-collector
+  template:
+    metadata:
+      labels:
+        app: result-collector
+    spec:
+      updateStrategy:
+        type: RollingUpdate
+      nodeSelector:
+        node-role.kubernetes.io/infra: "true"
+      serviceAccount: vega-worker
+      serviceAccountName: vega-worker
+      containers:
+      - name: result-collector
+        image: docker-registry.default.svc:5000/vega/result-collector
+        commands: /usr/bin/result-collector
+        args:
+        - --calculations-dir=/nfs
+        - --results-dir=/nfs/POC_results
+        volumeMounts:
+        - mountPath: /nfs
+          name: calculations
+      volumes:
+      - name: calculations
+        persistentVolumeClaim:
+          claimName: results-nfs-claim
