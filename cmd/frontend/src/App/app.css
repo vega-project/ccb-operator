@@ -1,0 +1,68 @@
+
+:root {
+  --myApp-global--spacer--md: 30px;
+}
+
+.app-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--myApp-global--spacer--md);
+}
+
+.notification-container {
+  flex: 0 1 auto;
+}
+
+.table {
+  width: 100%;
+}
+
+.label {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.label p {
+  text-align: center;
+}
+
+.yaxis-line {
+  border-right: 3px solid #000000;
+}
+
+.xaxis-line {
+  border-top: 3px solid #000000;
+}
+
+.vertical {
+  display: inherit;
+  transform: rotate(270deg);
+}
+
+.cell {
+  text-align: center;
+}
+
+.cell.active {
+  background-color: #b3b3b3;
+}
+.cell.active  > .dot {
+  color: green;
+}
+.cell.selected  {
+  background-color: yellow;
+}
+
+.cell:hover {
+  cursor: pointer;
+}
+
+.cell > .dot {
+  font-size: 2rem;
+  line-height: 1rem;
+  color: #CCCCCC;
+  display: inline-block;
+  vertical-align: middle;
+}
+
