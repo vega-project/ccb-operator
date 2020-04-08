@@ -1,1 +1,3 @@
 sftp-config.json
+cmd/frontend/node_modules
+cmd/frontend/dist
