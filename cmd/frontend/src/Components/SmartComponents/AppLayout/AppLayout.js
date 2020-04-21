@@ -4,7 +4,6 @@ import logo from '../../../App/static/images/vega-logo.png';
 import Dashboard from '../Dashboard/Dashboard';
 
 const AppLayout = () => {
-  const [isNavOpen, setNavOpen] = useState(true);
 
   const logoProps = {
     href: '../../assets/vega-logo.png',
@@ -16,15 +15,11 @@ const AppLayout = () => {
     <PageHeader
       logo={<Brand src={logo} alt="Vega Logo Black" />}
       logoProps={logoProps}
-      showNavToggle
-      isNavOpen={isNavOpen}
-      onNavToggle={() => setNavOpen(!isNavOpen)}
     />
   );
-  const Sidebar = <PageSidebar nav="Dashboard" isNavOpen={isNavOpen} theme="dark" />;
 
   return (
-    <Page header={Header} sidebar={Sidebar}>
+    <Page header={Header}>
       <PageSection>
         <Dashboard />
       </PageSection>
