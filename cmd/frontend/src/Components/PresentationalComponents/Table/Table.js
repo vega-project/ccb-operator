@@ -1,38 +1,8 @@
 import React, { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
+import YAxisLabel from './YAxisLabel/YAxisLabel';
+import XAxisLabel from './XAxisLabel/XAxisLabel'
 
-const YAxisLabel = ({ length, label }) => (
-  <Fragment>
-    <td className="y-axis-label label" rowSpan={length}>
-      <p className="vertical">{label}</p>
-    </td>
-    <td rowSpan={length} className="yaxis-line" />
-  </Fragment>
-);
-const XAxisLabel = ({ length, label }) => (
-  <Fragment>
-    <tr>
-      <td colSpan="2" />
-      <td colSpan={length} className="xaxis-line" />
-    </tr>
-    <tr className="x-axis-label label">
-      <td colSpan="3" />
-      <td colSpan={length}>
-        <p>{label}</p>
-      </td>
-    </tr>
-  </Fragment>
-);
-
-XAxisLabel.propTypes = {
-  length: PropTypes.number.isRequired,
-  label: PropTypes.string.isRequired
-};
-
-YAxisLabel.propTypes = {
-  length: PropTypes.number.isRequired,
-  label: PropTypes.string.isRequired
-};
 const Table = ({ xaxis, yaxis, columns, rows }) => {
   const [selectedIndex, setSelectedIndex] = useState([]);
   const [selected, setSelected] = useState();
@@ -48,9 +18,13 @@ const Table = ({ xaxis, yaxis, columns, rows }) => {
       <table className="table">
         {columns.map((column, columnIndex) => (
           <tr key={columnIndex}>
-            {columnIndex === 0 && <YAxisLabel length={columns.length} label={yaxis} />}
+            <YAxisLabel 
+              index={columnIndex} 
+              label={yaxis.label} 
+              stepper={columns}
+            />
 
-            {rows.reverse().map((row, rowIndex) => (
+            {rows.map((row, rowIndex) => (
               <td
                 key={rowIndex}
                 onClick={evt => handleSelectRow(evt, column, row, columnIndex, rowIndex)}
@@ -63,16 +37,24 @@ const Table = ({ xaxis, yaxis, columns, rows }) => {
             ))}
           </tr>
         ))}
-        <XAxisLabel length={rows.length} label={xaxis} />
+        <XAxisLabel stepper={rows} label={xaxis.label} />
       </table>
       <p>You selected: {selected}</p>
     </Fragment>
   );
 };
 
+
+
 Table.propTypes = {
-  xaxis: PropTypes.string.isRequired,
-  yaxis: PropTypes.string.isRequired,
+  xaxis: PropTypes.shape({
+    label: PropTypes.string,
+    stepper: PropTypes.number
+  }).isRequired,
+  yaxis: PropTypes.shape({
+    label: PropTypes.string,
+    stepper: PropTypes.number
+  }).isRequired,
   columns: PropTypes.array.isRequired,
   rows: PropTypes.array.isRequired
 };
