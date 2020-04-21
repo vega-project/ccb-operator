@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Page, PageHeader, PageSidebar, PageSection, Brand } from '@patternfly/react-core';
+import { Page, PageHeader, PageSectionVariants, PageSection, Brand } from '@patternfly/react-core';
 import logo from '../../../App/static/images/vega-logo.png';
 import Dashboard from '../Dashboard/Dashboard';
 
@@ -20,7 +20,7 @@ const AppLayout = () => {
 
   return (
     <Page header={Header}>
-      <PageSection>
+      <PageSection variant={PageSectionVariants.light}>
         <Dashboard />
       </PageSection>
     </Page>

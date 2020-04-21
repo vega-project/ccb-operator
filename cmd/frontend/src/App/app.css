@@ -15,7 +15,7 @@
 }
 
 .table {
-  width: 100%;
+  width: 500px;
   table-layout: fixed;
 }
 
@@ -51,12 +51,13 @@ td.yaxis-label {
 }
 
 .cell {
-  width: 28px;
+  width: 35px;
+  height: 35px;
   text-align: center;
 }
 
 .cell.active {
-  background-color: #b3b3b3;
+  background-color: #EEEEEE;
 }
 .cell.active  > .dot {
   color: green;
@@ -73,7 +74,9 @@ td.yaxis-label {
   font-size: 2rem;
   line-height: 1rem;
   color: #CCCCCC;
-  display: inline-block;
-  vertical-align: middle;
+  display: table-cell;
+  outline: 1px solid #fff;
+  padding: 10px;
 }
+
 
