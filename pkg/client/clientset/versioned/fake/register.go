@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

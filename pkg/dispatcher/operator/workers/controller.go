@@ -28,10 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	calculationsclient "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calclisters "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/util"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	calculationsclient "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	calclisters "github.com/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 const (

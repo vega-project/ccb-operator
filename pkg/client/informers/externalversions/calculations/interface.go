@@ -19,8 +19,8 @@ limitations under the License.
 package calculations
 
 import (
-	v1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations/v1"
-	internalinterfaces "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations/v1"
+	internalinterfaces "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

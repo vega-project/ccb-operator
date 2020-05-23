@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

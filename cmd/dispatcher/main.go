@@ -16,9 +16,9 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 
-	client "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/dispatcher/operator"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/util"
+	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	"github.com/vega-project/ccb-operator/pkg/dispatcher/operator"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 type options struct {

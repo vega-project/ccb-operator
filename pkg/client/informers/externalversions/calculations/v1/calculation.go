@@ -21,10 +21,10 @@ package v1
 import (
 	time "time"
 
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	versioned "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	internalinterfaces "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	versioned "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

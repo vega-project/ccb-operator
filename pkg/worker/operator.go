@@ -11,11 +11,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	clientset "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculationscheme "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/scheme"
-	informers "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/worker/executor"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	clientset "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	calculationscheme "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/scheme"
+	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions"
+	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
 const agentName = "dispatcher-operator"

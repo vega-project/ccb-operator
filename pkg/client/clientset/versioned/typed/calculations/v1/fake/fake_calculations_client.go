@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
