@@ -11,9 +11,9 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	client "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/util"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/worker"
+	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	"github.com/vega-project/ccb-operator/pkg/util"
+	"github.com/vega-project/ccb-operator/pkg/worker"
 )
 
 type options struct {

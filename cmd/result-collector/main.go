@@ -10,10 +10,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	client "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	informers "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions"
-	resultcollector "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/result-collector"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/util"
+	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions"
+	resultcollector "github.com/vega-project/ccb-operator/pkg/result-collector"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 type options struct {

@@ -18,7 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
 const (
