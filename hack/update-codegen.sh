@@ -1,9 +1,9 @@
 #!/bin/bash
 
-APIS_DIR="gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations"
+APIS_DIR="github.com/vega-project/ccb-operator/pkg/apis/calculations"
 VERSION="v1"
 APIS_VERSION_DIR="${APIS_DIR}/${VERSION}"
-OUTPUT_DIR="gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client"
+OUTPUT_DIR="github.com/vega-project/ccb-operator/pkg/client"
 CLIENTSET_DIR="${OUTPUT_DIR}/clientset"
 LISTERS_DIR="${OUTPUT_DIR}/listers"
 INFORMERS_DIR="${OUTPUT_DIR}/informers"

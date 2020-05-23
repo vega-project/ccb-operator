@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
-	fakecalculationsv1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1/fake"
+	clientset "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	fakecalculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculations "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations"
-	internalinterfaces "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
+	calculations "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations"
+	internalinterfaces "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

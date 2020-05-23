@@ -19,8 +19,8 @@ limitations under the License.
 package v1
 
 import (
-	v1 "gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	"gitlab.physics.muni.cz/vega-project/ccb-operator/pkg/client/clientset/versioned/scheme"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
