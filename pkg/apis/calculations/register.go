@@ -1,5 +1,5 @@
 package calculations
 
 const (
-	GroupName = "vega.io"
+	GroupName = "calculations.vega.io"
 )
