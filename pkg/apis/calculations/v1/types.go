@@ -1,7 +1,6 @@
 package v1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -55,21 +54,10 @@ type Step struct {
 
 type CalculationStatus struct {
 	//Conditions represent the latest available observations of an object's current state:
-	//More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#typical-status-properties
-	Conditions []CalculationCondition `json:"conditions,omitempty"`
-}
-
-type CalculationCondition struct {
-	// Type of calculation condition.
-	Type CalculationConditionType `json:"type"`
-	// Status of the condition, one of True, False, Unknown.
-	Status v1.ConditionStatus `json:"status"`
-	// The last time this condition was updated.
-	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
-	// Last time the condition transitioned from one status to another.
-	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
-	// The reason for the condition's last transition.
-	Reason string `json:"reason,omitempty"`
-	// Human-readable message indicating details about last transition
-	Message string `json:"message,omitempty"`
+	// StartTime is equal to the creation time of the ProwJob
+	StartTime metav1.Time `json:"startTime,omitempty"`
+	// PendingTime is the timestamp for when the job moved from triggered to pending
+	PendingTime *metav1.Time `json:"pendingTime,omitempty"`
+	// CompletionTime is the timestamp for when the job goes to a final state
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 }

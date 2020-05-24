@@ -35,11 +35,8 @@ import (
 )
 
 const (
-	controllerName  = "WorkerPods"
-	vegaPodLabel    = "vega-worker"
-	phaseCreated    = "Created"
-	phaseCompleted  = "Completed"
-	phaseProcessing = "Processing"
+	controllerName = "WorkerPods"
+	vegaPodLabel   = "vega-worker"
 )
 
 // Controller ...
@@ -169,7 +166,7 @@ func (c *Controller) syncHandler(key string) error {
 
 func hasAssignedCalculation(calculations []*calculationsv1.Calculation) bool {
 	for _, c := range calculations {
-		if c.Phase == phaseCreated || c.Phase == phaseProcessing {
+		if c.Phase == calculationsv1.CreatedPhase || c.Phase == calculationsv1.ProcessingPhase {
 			return true
 		}
 	}
@@ -249,7 +246,8 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 		},
 		Assign: vegaPodName,
 		DBKey:  dbKey,
-		Phase:  phaseCreated,
+		Phase:  calculationsv1.CreatedPhase,
+		Status: calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
 		Spec:   calcSpec,
 	}
 
