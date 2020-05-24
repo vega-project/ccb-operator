@@ -240,7 +240,7 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 		},
 	}
 
-	calcName := fmt.Sprintf("calc-%s", inputHash([]byte(teff[0]), []byte(logG[0])))
+	calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(teff[0]), []byte(logG[0])))
 	calculation := &calculationsv1.Calculation{
 		TypeMeta: metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{
