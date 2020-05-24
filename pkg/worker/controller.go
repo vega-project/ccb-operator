@@ -131,6 +131,7 @@ func (c *Controller) syncHandler(key string) error {
 		case calculationsv1.CreatedPhase:
 			c.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
 			calculation.Phase = calculationsv1.ProcessingPhase
+			calculation.Status.PendingTime = &metav1.Time{Time: time.Now()}
 
 			c.logger.Info("Sent for execution")
 			c.executeChan <- calculation
@@ -183,6 +184,7 @@ func (c *Controller) updateCalculationPhase(calc *calculationsv1.Calculation, ph
 			return err
 		}
 		newCalc.Phase = phase
+		newCalc.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
 		_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(newCalc)
 		return err
