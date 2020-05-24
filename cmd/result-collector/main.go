@@ -71,7 +71,7 @@ func main() {
 
 	informer.Start(stopCh)
 
-	go func() { err = controller.Run(2, stopCh) }()
+	go func() { err = controller.Run(stopCh) }()
 	if err != nil {
 		logger.WithError(err).Errorf("failed to run Calculations controller")
 	}
