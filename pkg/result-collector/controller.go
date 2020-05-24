@@ -76,7 +76,7 @@ func NewController(calculationClientSet calculationsclient.Interface, calculatio
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer c.taskQueue.Workqueue.ShutDown()
 
@@ -89,12 +89,9 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	c.logger.Info("Starting calculation workers")
-	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.taskQueue.RunWorker, time.Second, stopCh)
-	}
-
-	c.logger.Info("Started calculation workers")
+	c.logger.Info("Starting calculation worker")
+	go wait.Until(c.taskQueue.RunWorker, time.Second, stopCh)
+	c.logger.Info("Started calculation worker")
 
 	<-stopCh
 	return nil
