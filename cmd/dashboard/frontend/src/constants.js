@@ -5,7 +5,7 @@ export const AXES_CONFIG = {
         start: 10000,
         end: 20000,
         total: 50,
-        step: 200
+        step: 1 //200
     },
     surfaceGravity: {
         start: 1,
@@ -34,7 +34,7 @@ export const TEFF_LOG_GRID = {
         stepper: AXES_CONFIG.surfaceGravity.step
     },
     xaxis: {
-        label: 'Teff [kK]',
+        label: 'Teff [K]',
         stepper: AXES_CONFIG.effectiveTemperature.step
     }
 

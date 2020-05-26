@@ -1,16 +1,31 @@
 import React, { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import YAxisLabel from './YAxisLabel/YAxisLabel';
 import XAxisLabel from './XAxisLabel/XAxisLabel';
 
-const Table = ({ xaxis, yaxis, columns, rows }) => {
-    const [selectedIndex, setSelectedIndex] = useState([]);
+const Table = ({ xaxis, yaxis, columns, rows, data }) => {
     const [selected, setSelected] = useState();
 
     const handleSelectRow = (evn, column, row, columnIndex, rowIndex) => {
-    // TODO  make indexes better, safer
-        setSelectedIndex(`${columnIndex},${rowIndex}`);
-        setSelected(`${column},${row}`);
+        setSelected(`${column}-${row}`);
+    };
+
+    const getComputedStyle = (logG, teff) => {
+        let phase = '';
+        let filtered = data && data.items.filter(({ spec }) => spec.Teff === teff && spec.LogG === logG);
+
+        if (filtered.length) {
+            let [calc] = filtered;
+            phase = calc.phase.toLowerCase();
+        }
+
+        return classNames({
+            cell: true,
+            selected: selected === `${logG}-${teff}`,
+            active: phase === 'created',
+            processing: phase === 'processing'
+        });
     };
 
     return (
@@ -28,9 +43,7 @@ const Table = ({ xaxis, yaxis, columns, rows }) => {
                             <td
                                 key={rowIndex}
                                 onClick={evt => handleSelectRow(evt, column, row, columnIndex, rowIndex)}
-                                className={`cell ${selectedIndex === `${columnIndex},${rowIndex}` ? 'selected' : ''} ${
-                                    rowIndex / columnIndex > 1 && rowIndex / columnIndex < 1.8 ? 'active' : 'disable'
-                                }`}
+                                className={getComputedStyle(column, row)}
                             >
                                 <span className="dot">•</span>
                             </td>
@@ -54,7 +67,8 @@ Table.propTypes = {
         stepper: PropTypes.number
     }).isRequired,
     columns: PropTypes.array.isRequired,
-    rows: PropTypes.array.isRequired
+    rows: PropTypes.array.isRequired,
+    data: PropTypes.object.isRequired
 };
 
 export default Table;
