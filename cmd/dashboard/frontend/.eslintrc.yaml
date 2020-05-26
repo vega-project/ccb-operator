@@ -11,6 +11,9 @@ parserOptions:
   ecmaVersion: 7
   sourceType: module
 globals:
+  HOST: true
+  require: true
+  module: true
   beforeAll: true
   describe: true
   expect: true

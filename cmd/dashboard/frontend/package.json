@@ -8,7 +8,8 @@
   "private": true,
   "scripts": {
     "prebuild": "yarn clean",
-    "build": "webpack --config webpack.prod.js",
+    "build": "NODE_ENV=devel webpack --config webpack.dev.js",
+    "prod": "NODE_ENV=prod webpack --config webpack.prod.js",
     "start": "webpack-dev-server --hot --color --progress --info=true --config webpack.dev.js",
     "lint": "eslint src/",
     "clean": "yarn rimraf dist"
@@ -47,6 +48,7 @@
     "webpack-merge": "^4.1.4"
   },
   "dependencies": {
+    "axios": "^0.19.2",
     "prop-types": "^15.7.2",
     "react-router-dom": "^5.1.2"
   }
