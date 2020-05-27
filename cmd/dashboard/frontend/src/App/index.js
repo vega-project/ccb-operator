@@ -4,9 +4,9 @@ import AppLayout from '../Components/SmartComponents/AppLayout/AppLayout';
 import './app.css';
 
 const App = () => (
-  <Router>
-    <AppLayout />
-  </Router>
+    <Router>
+        <AppLayout />
+    </Router>
 );
 
 export default App;
