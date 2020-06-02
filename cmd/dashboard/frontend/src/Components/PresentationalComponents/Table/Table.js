@@ -15,7 +15,7 @@ const Table = ({ xaxis, yaxis, columns, rows, data }) => {
         let phase = '';
         let filtered = data && data.items.filter(({ spec }) => spec.Teff === teff && spec.LogG === logG);
 
-        if (filtered.length) {
+        if (filtered && filtered.length) {
             let [calc] = filtered;
             phase = calc.phase.toLowerCase();
         }

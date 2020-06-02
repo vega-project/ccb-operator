@@ -14,7 +14,7 @@ const XAxisLabel = ({ label, stepper }) => (
         <tr>
             <td colSpan="3" />
             {stepper.map((row, index) => {
-                return index % 4 === 0 ? <td rowSpan="3" className="label label-y">{row}</td> : <td rowSpan="3"/>;
+                return index % 4 === 0 ? <td rowSpan="3" className="label">{row}</td> : <td rowSpan="3"/>;
             })}
         </tr>
         <tr></tr>
