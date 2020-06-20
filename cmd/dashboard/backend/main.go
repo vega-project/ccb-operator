@@ -36,6 +36,11 @@ const (
 	dryTickerMinutes     = 1
 )
 
+type Response struct {
+	Message    string `json:"message,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
+}
+
 func gatherOptions() options {
 	o := options{}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
@@ -47,16 +52,128 @@ func gatherOptions() options {
 	return o
 }
 
+type newCalc struct {
+	Teff string `json:"teff"`
+	LogG string `json:"logG"`
+}
+
+func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	decoder := json.NewDecoder(r.Body)
+
+	var calc newCalc
+	err := decoder.Decode(&calc)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("couldn't decode json params: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	t, err := strconv.ParseFloat(calc.Teff, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("teff is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	l, err := strconv.ParseFloat(calc.LogG, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("logG is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	// TODO: share this since the calculation spec will be always the same
+	calcSpec := calculationsv1.CalculationSpec{
+		Teff: t,
+		LogG: l,
+		Steps: []calculationsv1.Step{
+			{
+				Command: "atlas12_ada",
+				Args:    []string{"s"},
+			},
+			{
+				Command: "atlas12_ada",
+				Args:    []string{"r"},
+			},
+			{
+				Command: "synspec49",
+				Args:    []string{"<", "input_tlusty_fortfive"},
+			},
+		},
+	}
+
+	calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(calc.Teff), []byte(calc.LogG)))
+	calculation := &calculationsv1.Calculation{
+		TypeMeta: metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: calcName,
+		},
+		Phase:  calculationsv1.CreatedPhase,
+		Status: calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
+		Spec:   calcSpec,
+	}
+
+	c, err := o.client.Calculations().Create(calculation)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("couldn't create calculation: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(c)
+	}
+
+}
+
+func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "DELETE" {
+		return
+	}
+	calcID := mux.Vars(r)["id"]
+
+	err := o.client.Calculations().Delete(calcID, &metav1.DeleteOptions{})
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("couldn't delete calculation: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(Response{
+			Message:    fmt.Sprintf("calculation %q has been deleted", calcID),
+			StatusCode: 200,
+		})
+	}
+}
+
 func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	calcList, err := o.client.Calculations().List(metav1.ListOptions{})
 	if err != nil {
-		fmt.Fprintf(w, "couldn't get calculations list: %v", err)
-		return
+		e := Response{
+			Message:    fmt.Sprintf("couldn't get calculations list: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(calcList)
 	}
-
-	json.NewEncoder(w).Encode(calcList)
 }
 
 func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
@@ -66,10 +183,14 @@ func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
 
 	calc, err := o.client.Calculations().Get(calcID, metav1.GetOptions{})
 	if err != nil {
-		fmt.Fprintf(w, "couldn't get calculation %s: %v", calcID, err)
-		return
+		e := Response{
+			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcID, err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(calc)
 	}
-	json.NewEncoder(w).Encode(calc)
 }
 
 func main() {
@@ -87,6 +208,8 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/calculations", o.getCalculations)
 	router.HandleFunc("/calculation/{id}", o.getCalculation)
+	router.HandleFunc("/calculations/create", o.createCalculation)
+	router.HandleFunc("/calculations/delete/{id}", o.deleteCalculation)
 
 	logrus.Infof("Listening on %d port", o.port)
 	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
