@@ -124,10 +124,6 @@ func (c *Controller) syncHandler(key string) error {
 
 	if len(status) > 0 {
 		if calc.Phase == "Completed" && status[0] != "Completed" {
-			//toUpdate["results_fil"] = calc.Spec.Steps[1].ResultsFil
-			//toUpdate["results_ros"] = calc.Spec.Steps[1].ResultsRos
-			//toUpdate["results_mod"] = calc.Spec.Steps[1].ResultsMod
-			//toUpdate["results_synspec"] = calc.Spec.Steps[2].ResultsSynspec
 			toUpdate["status"] = "Completed"
 			c.logger.WithFields(logrus.Fields{"dbkey": calc.DBKey, "for-calculation": calc.Name}).Info("Updating database with results...")
 			c.redisClient.HMSet(calc.DBKey, toUpdate)

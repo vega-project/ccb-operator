@@ -18,8 +18,6 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
-const agentName = "dispatcher-operator"
-
 type Operator struct {
 	logger                   *logrus.Logger
 	kubeclientset            kubernetes.Interface

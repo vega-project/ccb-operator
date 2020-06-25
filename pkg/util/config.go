@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// LoadClusterConfig ...
+// LoadClusterConfig returns a cluster config
 func LoadClusterConfig() (*rest.Config, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err == nil {

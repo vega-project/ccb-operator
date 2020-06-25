@@ -27,7 +27,6 @@ const (
 	controllerName = "result-collector"
 )
 
-// Controller ...
 type Controller struct {
 	calculationLister    listers.CalculationLister
 	calculationClientSet calculationsclient.Interface
@@ -38,7 +37,6 @@ type Controller struct {
 	resultsDir           string
 }
 
-// NewController ...
 func NewController(calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, calculationsDir, resultsDir string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
