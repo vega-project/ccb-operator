@@ -22,8 +22,6 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/operator/workers"
 )
 
-const agentName = "dispatcher-operator"
-
 type Operator struct {
 	logger                 *logrus.Logger
 	kubeclientset          kubernetes.Interface
@@ -47,7 +45,7 @@ func NewMainOperator(kubeclientset kubernetes.Interface, vegaclientset clientset
 	}
 }
 
-// Initialize ...
+// Initialize initializes the operator with both calculation/pods controllers and informers.
 func (op *Operator) Initialize() {
 	op.kubeInformer = kubeinformers.NewSharedInformerFactoryWithOptions(op.kubeclientset, 30*time.Second,
 		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {

@@ -78,6 +78,9 @@ func (e *Executor) Run() {
 			}
 
 			// Creating folder
+			// TODO: create a temporary folder and copy the results only
+			// if the calculation succeeds. Otherwise the temp folder should be
+			// deleted. Make sure that this won't race with the result-collector
 			calcPath := filepath.Join(e.nfsPath, calc.Name)
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, os.ModePerm); err != nil {

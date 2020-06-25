@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
-// TaskQueue ...
+// TaskQueue holds all the information needed to create a task queue.
 type TaskQueue struct {
 	controllerName string
 	logger         *logrus.Entry
@@ -25,7 +25,7 @@ type TaskQueue struct {
 	syncHandler func(string) error
 }
 
-// NewTaskQueue ...
+// NewTaskQueue returns a new TaskQueue
 func NewTaskQueue(workqueue workqueue.RateLimitingInterface, syncHandler func(string) error, controllerName string, logger *logrus.Entry) *TaskQueue {
 	return &TaskQueue{logger: logger,
 		Workqueue:      workqueue,
