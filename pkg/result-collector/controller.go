@@ -107,8 +107,7 @@ func (c *Controller) syncHandler(key string) error {
 	calculation, err := c.calculationLister.Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			fmt.Errorf("calculation '%s' in work queue no longer exists", key)
-			return nil
+			return fmt.Errorf("calculation %s in work queue no longer exists", key)
 		}
 		return err
 	}

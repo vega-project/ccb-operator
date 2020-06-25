@@ -105,8 +105,7 @@ func (c *Controller) syncHandler(key string) error {
 	// Convert the namespace/name string into a distinct namespace and name
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		fmt.Errorf("invalid resource key: %s", key)
-		return nil
+		return fmt.Errorf("invalid resource key: %s", key)
 	}
 
 	// Get the calculation resource with this namespace/name

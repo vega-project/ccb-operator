@@ -135,8 +135,7 @@ func (c *Controller) syncHandler(key string) error {
 	pod, err := c.podLister.Pods(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			fmt.Errorf("Pod '%s' in work queue no longer exists", key)
-			return nil
+			return fmt.Errorf("Pod %s in work queue no longer exists", key)
 		}
 		return err
 	}
