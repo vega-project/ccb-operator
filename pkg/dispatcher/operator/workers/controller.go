@@ -20,7 +20,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -198,6 +197,8 @@ func (c *Controller) assignCalulationDB() (string, []string, []string) {
 }
 
 func (c *Controller) createCalculationForPod(vegaPodName string) error {
+	// TODO: first check for created_by_human calculations
+	// then check in database
 	dbKey, teff, logG := c.assignCalulationDB()
 
 	if len(teff) == 0 {
@@ -214,40 +215,12 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 		return fmt.Errorf("couldn't parse logG [%s] as float: %v", logG, err)
 	}
 
-	calcSpec := calculationsv1.CalculationSpec{
-		Teff: t,
-		LogG: l,
-		Steps: []calculationsv1.Step{
-			{
-				Command: "atlas12_ada",
-				Args:    []string{"s"},
-			},
-			{
-				Command: "atlas12_ada",
-				Args:    []string{"r"},
-			},
-			{
-				Command: "synspec49",
-				Args:    []string{"<", "input_tlusty_fortfive"},
-			},
-		},
-	}
+	calculation := util.NewCalculation(t, l)
+	calculation.Labels = map[string]string{"assign": vegaPodName}
+	calculation.Assign = vegaPodName
+	calculation.DBKey = dbKey
 
-	calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(teff[0]), []byte(logG[0])))
-	calculation := &calculationsv1.Calculation{
-		TypeMeta: metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   calcName,
-			Labels: map[string]string{"assign": vegaPodName},
-		},
-		Assign: vegaPodName,
-		DBKey:  dbKey,
-		Phase:  calculationsv1.CreatedPhase,
-		Status: calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
-		Spec:   calcSpec,
-	}
-
-	c.logger.WithFields(logrus.Fields{"name": calcName, "for-pod": vegaPodName}).Info("Creating new calculation...")
+	c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		_, err = c.calculationClient.CalculationsV1().Calculations().Create(calculation)
 		return err

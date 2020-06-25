@@ -96,36 +96,8 @@ func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: share this since the calculation spec will be always the same
-	calcSpec := calculationsv1.CalculationSpec{
-		Teff: t,
-		LogG: l,
-		Steps: []calculationsv1.Step{
-			{
-				Command: "atlas12_ada",
-				Args:    []string{"s"},
-			},
-			{
-				Command: "atlas12_ada",
-				Args:    []string{"r"},
-			},
-			{
-				Command: "synspec49",
-				Args:    []string{"<", "input_tlusty_fortfive"},
-			},
-		},
-	}
-
-	calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(calc.Teff), []byte(calc.LogG)))
-	calculation := &calculationsv1.Calculation{
-		TypeMeta: metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: calcName,
-		},
-		Phase:  calculationsv1.CreatedPhase,
-		Status: calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
-		Spec:   calcSpec,
-	}
+	calculation := util.NewCalculation(t, l)
+	calculation.Labels = map[string]string{"created_by_human": "true"}
 
 	c, err := o.client.Calculations().Create(calculation)
 	if err != nil {
