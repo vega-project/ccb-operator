@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -36,6 +38,7 @@ const (
 
 // Controller ...
 type Controller struct {
+	ctx               context.Context
 	podLister         listers.PodLister
 	calculationLister calclisters.CalculationLister
 	kubeClient        kubernetes.Interface
@@ -220,7 +223,7 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 
 	c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = c.calculationClient.CalculationsV1().Calculations().Create(calculation)
+		_, err = c.calculationClient.CalculationsV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
 		return err
 	}); err != nil {
 		c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")

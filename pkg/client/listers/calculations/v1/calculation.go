@@ -26,10 +26,13 @@ import (
 )
 
 // CalculationLister helps list Calculations.
+// All objects returned here must be treated as read-only.
 type CalculationLister interface {
 	// List lists all Calculations in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.Calculation, err error)
 	// Get retrieves the Calculation from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.Calculation, error)
 	CalculationListerExpansion
 }
