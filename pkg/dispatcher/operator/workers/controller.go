@@ -50,10 +50,11 @@ type Controller struct {
 }
 
 // NewController ...
-func NewController(kubeClient kubernetes.Interface, podInformer informers.PodInformer, calculationClient calculationsclient.Interface, calculationLister calclisters.CalculationLister, redisClient *redis.Client) *Controller {
+func NewController(ctx context.Context, kubeClient kubernetes.Interface, podInformer informers.PodInformer, calculationClient calculationsclient.Interface, calculationLister calclisters.CalculationLister, redisClient *redis.Client) *Controller {
 	logger := logrus.WithField("controller", "pod-workers")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
+		ctx:               ctx,
 		podLister:         podInformer.Lister(),
 		calculationClient: calculationClient,
 		calculationLister: calculationLister,

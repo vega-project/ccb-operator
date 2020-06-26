@@ -121,7 +121,10 @@ func main() {
 		logger.WithError(err).Fatal("could not create calculation client")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	c := controller{
+		ctx:           ctx,
 		logger:        logrus.NewEntry(logrus.StandardLogger()),
 		retention:     o.retention,
 		calcInterface: calcClient.CalculationsV1(),

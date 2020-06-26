@@ -108,7 +108,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(kubeclient, vegaClient, o.redisURL)
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL)
 
 				// Initialize the operator
 				op.Initialize()

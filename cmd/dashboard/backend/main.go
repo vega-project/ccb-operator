@@ -171,6 +171,11 @@ func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
 func main() {
 	o := gatherOptions()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	o.ctx = ctx
+
 	if o.dryRun {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()

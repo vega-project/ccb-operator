@@ -42,10 +42,11 @@ type Controller struct {
 	hostname             string
 }
 
-func NewController(calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, executeChan chan *calculationsv1.Calculation, stepUpdaterChan chan executor.Result, hostname string) *Controller {
+func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, executeChan chan *calculationsv1.Calculation, stepUpdaterChan chan executor.Result, hostname string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
+		ctx:                  ctx,
 		calculationLister:    calculationInformer.Lister(),
 		calculationsSynced:   calculationInformer.Informer().HasSynced,
 		calculationClientSet: calculationClientSet,
