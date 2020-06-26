@@ -177,20 +177,11 @@ func (c *Controller) assignCalulationDB() (string, string, string) {
 		c.logger.WithError(err).Error("redis error")
 	}
 
-	toUpdate := make(map[string]interface{})
-
 	for _, vz := range vzList {
 		status := c.redisClient.HMGet(vz, "status").Val()[0]
 		if status == nil {
 			teff := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "teff").Val()[0])
 			logG := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "logG").Val()[0])
-
-			// set status
-			toUpdate["status"] = "Processing"
-
-			c.logger.WithFields(logrus.Fields{"vz": vz, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
-			c.redisClient.HMSet(vz, toUpdate)
-
 			return vz, teff, logG
 		}
 	}
@@ -228,6 +219,14 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 	}); err != nil {
 		c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")
 		return err
+	}
+
+	toUpdate := make(map[string]interface{})
+	toUpdate["status"] = "Processing"
+
+	c.logger.WithFields(logrus.Fields{"dbKey": dbKey, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
+	if boolCmd := c.redisClient.HMSet(dbKey, toUpdate); boolCmd.Err() != nil {
+		return fmt.Errorf("couldn't update status in database: %v", boolCmd.Err())
 	}
 
 	return nil

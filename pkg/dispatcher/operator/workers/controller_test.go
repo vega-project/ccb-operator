@@ -36,7 +36,6 @@ func TestAssignCalulationDB(t *testing.T) {
 	testCases := []struct {
 		id           string
 		data         []testData
-		expected     map[string]map[string]string
 		expectToPick picked
 	}{
 		{
@@ -47,12 +46,8 @@ func TestAssignCalulationDB(t *testing.T) {
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4"},
 				},
 			},
-			expected: map[string]map[string]string{
-				"vz.star:teff_10000": {"teff": "10000.0", "logG": "4", "status": "Processing"},
-			},
 			expectToPick: picked{name: "vz.star:teff_10000", teff: "10000.0", logG: "4"},
 		},
-
 		{
 			id: "multiple values",
 			data: []testData{
@@ -72,12 +67,6 @@ func TestAssignCalulationDB(t *testing.T) {
 					name:   "vz.star:teff_13000",
 					values: map[string]interface{}{"teff": "13000.0", "logG": "4"},
 				},
-			},
-			expected: map[string]map[string]string{
-				"vz.star:teff_10000": {"teff": "10000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_11000": {"teff": "11000.0", "logG": "4"},
-				"vz.star:teff_12000": {"teff": "12000.0", "logG": "4"},
-				"vz.star:teff_13000": {"teff": "13000.0", "logG": "4"},
 			},
 			expectToPick: picked{name: "vz.star:teff_10000", teff: "10000.0", logG: "4"},
 		},
@@ -102,12 +91,6 @@ func TestAssignCalulationDB(t *testing.T) {
 					values: map[string]interface{}{"teff": "13000.0", "logG": "4"},
 				},
 			},
-			expected: map[string]map[string]string{
-				"vz.star:teff_10000": {"teff": "10000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_11000": {"teff": "11000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_12000": {"teff": "12000.0", "logG": "4"},
-				"vz.star:teff_13000": {"teff": "13000.0", "logG": "4"},
-			},
 			expectToPick: picked{name: "vz.star:teff_11000", teff: "11000.0", logG: "4"},
 		},
 		{
@@ -129,12 +112,6 @@ func TestAssignCalulationDB(t *testing.T) {
 					name:   "vz.star:teff_13000",
 					values: map[string]interface{}{"teff": "13000.0", "logG": "4"},
 				},
-			},
-			expected: map[string]map[string]string{
-				"vz.star:teff_10000": {"teff": "10000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_11000": {"teff": "11000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_12000": {"teff": "12000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_13000": {"teff": "13000.0", "logG": "4", "status": "Processing"},
 			},
 			expectToPick: picked{name: "vz.star:teff_13000", teff: "13000.0", logG: "4"},
 		},
@@ -158,12 +135,6 @@ func TestAssignCalulationDB(t *testing.T) {
 					name:   "vz.star:teff_13000",
 					values: map[string]interface{}{"teff": "13000.0", "logG": "4"},
 				},
-			},
-			expected: map[string]map[string]string{
-				"vz.star:teff_10000": {"teff": "10000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_11000": {"teff": "11000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_12000": {"teff": "12000.0", "logG": "4", "status": "Processing"},
-				"vz.star:teff_13000": {"teff": "13000.0", "logG": "4"},
 			},
 			expectToPick: picked{name: "vz.star:teff_11000", teff: "11000.0", logG: "4"},
 		},
@@ -196,17 +167,7 @@ func TestAssignCalulationDB(t *testing.T) {
 				t.Fatalf("\nexpected: %#v\ngot: %#v", tc.expectToPick, actualPicked)
 
 			}
-
-			for _, testData := range tc.data {
-				newVal := redisClient.HGetAll(testData.name).Val()
-				if !reflect.DeepEqual(newVal, tc.expected[testData.name]) {
-					t.Fatalf("\nexpected: %#v\ngot: %#v", tc.expected[testData.name], newVal)
-				}
-			}
-
 			redisClient.FlushDB()
-
 		})
 	}
-
 }
