@@ -1,3 +1,8 @@
+# github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a
+github.com/alicebob/gopher-json
+# github.com/alicebob/miniredis v2.5.0+incompatible
+github.com/alicebob/miniredis
+github.com/alicebob/miniredis/server
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/evanphx/json-patch v0.0.0-20190203023257-5858425f7550
@@ -22,6 +27,9 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/gomodule/redigo v2.0.0+incompatible
+github.com/gomodule/redigo/internal
+github.com/gomodule/redigo/redis
 # github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 github.com/google/gofuzz
 # github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
@@ -47,6 +55,11 @@ github.com/modern-go/reflect2
 github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.1
 github.com/spf13/pflag
+# github.com/yuin/gopher-lua v0.0.0-20200603152657-dc2b0ca8b37e
+github.com/yuin/gopher-lua
+github.com/yuin/gopher-lua/ast
+github.com/yuin/gopher-lua/parse
+github.com/yuin/gopher-lua/pm
 # golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3

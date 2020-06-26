@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	redigo "github.com/garyburd/redigo/redis"
 	redis "github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 
@@ -168,10 +167,9 @@ func hasAssignedCalculation(calculations []*calculationsv1.Calculation) bool {
 	return false
 }
 
-func (c *Controller) assignCalulationDB() (string, []string, []string) {
+func (c *Controller) assignCalulationDB() (string, string, string) {
 	// TODO: --flag vz
-	vzList, err := c.redisClient.LRange("vz", 0, 100000).Result()
-
+	vzList, err := c.redisClient.ZRange("vz", 0, -1).Result()
 	if err != nil {
 		c.logger.WithError(err).Error("redis error")
 	}
@@ -179,10 +177,10 @@ func (c *Controller) assignCalulationDB() (string, []string, []string) {
 	toUpdate := make(map[string]interface{})
 
 	for _, vz := range vzList {
-		status, _ := redigo.Strings(c.redisClient.HMGet(vz, "status").Result())
-		if len(status) > 0 && status[0] == "" {
-			teff, _ := redigo.Strings(c.redisClient.HMGet(vz, "teff").Result())
-			logG, _ := redigo.Strings(c.redisClient.HMGet(vz, "logG").Result())
+		status := c.redisClient.HMGet(vz, "status").Val()[0]
+		if status == nil {
+			teff := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "teff").Val()[0])
+			logG := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "logG").Val()[0])
 
 			// set status
 			toUpdate["status"] = "Processing"
@@ -193,7 +191,7 @@ func (c *Controller) assignCalulationDB() (string, []string, []string) {
 			return vz, teff, logG
 		}
 	}
-	return "", nil, nil
+	return "", "", ""
 }
 
 func (c *Controller) createCalculationForPod(vegaPodName string) error {
@@ -206,11 +204,11 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 		return nil
 	}
 
-	t, err := strconv.ParseFloat(teff[0], 64)
+	t, err := strconv.ParseFloat(teff, 64)
 	if err != nil {
 		return fmt.Errorf("couldn't parse teff [%s] as float: %v", teff, err)
 	}
-	l, err := strconv.ParseFloat(logG[0], 64)
+	l, err := strconv.ParseFloat(logG, 64)
 	if err != nil {
 		return fmt.Errorf("couldn't parse logG [%s] as float: %v", logG, err)
 	}
