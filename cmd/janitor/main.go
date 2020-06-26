@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -47,6 +48,7 @@ func (o *options) validate() error {
 }
 
 type controller struct {
+	ctx           context.Context
 	calcInterface calculationsv1.CalculationsV1Interface
 	retention     time.Duration
 	logger        *logrus.Entry
@@ -79,7 +81,7 @@ func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) error {
 }
 
 func (c *controller) clean() {
-	calculations, err := c.calcInterface.Calculations().List(metav1.ListOptions{})
+	calculations, err := c.calcInterface.Calculations().List(c.ctx, metav1.ListOptions{})
 	if err != nil {
 		c.logger.WithError(err).Error("Error listing calculations.")
 		return
@@ -94,7 +96,7 @@ func (c *controller) clean() {
 			continue
 		}
 
-		if err := c.calcInterface.Calculations().Delete(calc.Name, &metav1.DeleteOptions{}); err == nil {
+		if err := c.calcInterface.Calculations().Delete(c.ctx, calc.Name, metav1.DeleteOptions{}); err == nil {
 			c.logger.WithField("calculation", calc.Name).Info("Deleted calculation")
 		} else {
 			c.logger.WithField("calculation", calc.Name).WithError(err).Error("Error deleting calculation")

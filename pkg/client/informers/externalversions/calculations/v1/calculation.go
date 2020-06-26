@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
@@ -60,13 +61,13 @@ func NewFilteredCalculationInformer(client versioned.Interface, resyncPeriod tim
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CalculationsV1().Calculations().List(options)
+				return client.CalculationsV1().Calculations().List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CalculationsV1().Calculations().Watch(options)
+				return client.CalculationsV1().Calculations().Watch(context.TODO(), options)
 			},
 		},
 		&calculationsv1.Calculation{},

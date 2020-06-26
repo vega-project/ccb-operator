@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ import (
 )
 
 func TestClean(t *testing.T) {
+	var ctx context.Context
 	testCases := []struct {
 		id              string
 		calculations    []*v1.Calculation
@@ -110,7 +112,7 @@ func TestClean(t *testing.T) {
 			retention, _ := time.ParseDuration("10m")
 
 			for _, calc := range tc.calculations {
-				if _, err := client.Calculations().Create(calc); err != nil {
+				if _, err := client.Calculations().Create(ctx, calc, metav1.CreateOptions{}); err != nil {
 					t.Fatalf("couldn't create calculation: %v", calc.Name)
 				}
 			}

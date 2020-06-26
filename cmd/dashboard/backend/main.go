@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,6 +23,8 @@ import (
 )
 
 type options struct {
+	ctx context.Context
+
 	dryRun bool
 	port   int
 
@@ -99,7 +102,7 @@ func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
 	calculation := util.NewCalculation(t, l)
 	calculation.Labels = map[string]string{"created_by_human": "true"}
 
-	c, err := o.client.Calculations().Create(calculation)
+	c, err := o.client.Calculations().Create(o.ctx, calculation, metav1.CreateOptions{})
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't create calculation: %v", err),
@@ -118,7 +121,7 @@ func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 	}
 	calcID := mux.Vars(r)["id"]
 
-	err := o.client.Calculations().Delete(calcID, &metav1.DeleteOptions{})
+	err := o.client.Calculations().Delete(o.ctx, calcID, metav1.DeleteOptions{})
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't delete calculation: %v", err),
@@ -136,7 +139,7 @@ func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	calcList, err := o.client.Calculations().List(metav1.ListOptions{})
+	calcList, err := o.client.Calculations().List(o.ctx, metav1.ListOptions{})
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't get calculations list: %v", err),
@@ -153,7 +156,7 @@ func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
 
 	calcID := mux.Vars(r)["id"]
 
-	calc, err := o.client.Calculations().Get(calcID, metav1.GetOptions{})
+	calc, err := o.client.Calculations().Get(o.ctx, calcID, metav1.GetOptions{})
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcID, err),
@@ -172,7 +175,7 @@ func main() {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
 		o.client = fakecs.CalculationsV1()
-		if err := dryRun(o.client); err != nil {
+		if err := dryRun(o.ctx, o.client); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
 	}
@@ -188,7 +191,7 @@ func main() {
 
 }
 
-func dryRun(fakeClient v1.CalculationsV1Interface) error {
+func dryRun(ctx context.Context, fakeClient v1.CalculationsV1Interface) error {
 	var dryCalcList []*calculationsv1.Calculation
 
 	// Generate fake calculations
@@ -233,7 +236,7 @@ func dryRun(fakeClient v1.CalculationsV1Interface) error {
 
 		dryCalcList = append(dryCalcList, calc)
 		logrus.WithField("calculation", calcName).Info("Creating calculation")
-		if _, err := fakeClient.Calculations().Create(calc); err != nil {
+		if _, err := fakeClient.Calculations().Create(ctx, calc, metav1.CreateOptions{}); err != nil {
 			return fmt.Errorf("couldn't create calculation: %v", calc)
 		}
 	}
@@ -261,19 +264,19 @@ func dryRun(fakeClient v1.CalculationsV1Interface) error {
 	}
 
 	for worker, calcNameList := range calcsByWorker {
-		go calcsSimulator(fakeClient, calcNameList, worker)
+		go calcsSimulator(ctx, fakeClient, calcNameList, worker)
 	}
 	return nil
 }
 
-func calcsSimulator(fakeClient v1.CalculationsV1Interface, calcNameList []string, workerName string) {
+func calcsSimulator(ctx context.Context, fakeClient v1.CalculationsV1Interface, calcNameList []string, workerName string) {
 	for _, calcName := range calcNameList {
 		logger := logrus.WithFields(logrus.Fields{"calculation": calcName, "worker": workerName})
-		simulateRun(fakeClient, calcName, logger)
+		simulateRun(ctx, fakeClient, calcName, logger)
 	}
 }
 
-func simulateRun(fakeClient v1.CalculationsV1Interface, calcName string, logger *logrus.Entry) {
+func simulateRun(ctx context.Context, fakeClient v1.CalculationsV1Interface, calcName string, logger *logrus.Entry) {
 	logger.Info("Starting simulation")
 
 	ticker := time.NewTicker(dryTickerMinutes * time.Minute)
@@ -282,7 +285,7 @@ func simulateRun(fakeClient v1.CalculationsV1Interface, calcName string, logger 
 
 	go func() {
 		opts := metav1.SingleObject(metav1.ObjectMeta{Name: calcName})
-		watcher, _ := fakeClient.Calculations().Watch(opts)
+		watcher, _ := fakeClient.Calculations().Watch(ctx, opts)
 		defer watcher.Stop()
 
 		// Watch calculation until Completed or Failed status
@@ -320,7 +323,7 @@ func simulateRun(fakeClient v1.CalculationsV1Interface, calcName string, logger 
 			logger.Warn("Simulation finished")
 			return
 		case <-ticker.C:
-			newCalc, err := fakeClient.Calculations().Get(calcName, metav1.GetOptions{})
+			newCalc, err := fakeClient.Calculations().Get(ctx, calcName, metav1.GetOptions{})
 
 			if err != nil {
 				logger.WithError(err).Error("couldn't get calculation")
@@ -361,7 +364,7 @@ func simulateRun(fakeClient v1.CalculationsV1Interface, calcName string, logger 
 
 		End:
 			logger.Info("Updating calculation")
-			fakeClient.Calculations().Update(newCalc)
+			fakeClient.Calculations().Update(ctx, newCalc, metav1.UpdateOptions{})
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -30,6 +31,7 @@ const (
 )
 
 type Controller struct {
+	ctx                  context.Context
 	calculationLister    listers.CalculationLister
 	calculationClientSet calculationsclient.Interface
 	logger               *logrus.Entry
@@ -136,7 +138,7 @@ func (c *Controller) syncHandler(key string) error {
 			c.executeChan <- calculation
 
 			if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-				_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(calculation)
+				_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(c.ctx, calculation, metav1.UpdateOptions{})
 				return err
 			}); err != nil {
 				c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't update calculation.")
@@ -178,14 +180,14 @@ func getCalculationFinalPhase(steps []calculationsv1.Step) calculationsv1.Calcul
 
 func (c *Controller) updateCalculationPhase(calc *calculationsv1.Calculation, phase calculationsv1.CalculationPhase) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		newCalc, err := c.calculationClientSet.CalculationsV1().Calculations().Get(calc.Name, metav1.GetOptions{})
+		newCalc, err := c.calculationClientSet.CalculationsV1().Calculations().Get(c.ctx, calc.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		newCalc.Phase = phase
 		newCalc.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
-		_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(newCalc)
+		_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -209,14 +211,14 @@ func (c *Controller) updateCalculation(r executor.Result) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 		// We need to Get the calculcation again because there is a chance that it will be changed in the cluster.
-		newCalc, err := c.calculationClientSet.CalculationsV1().Calculations().Get(r.CalcName, metav1.GetOptions{})
+		newCalc, err := c.calculationClientSet.CalculationsV1().Calculations().Get(c.ctx, r.CalcName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
 		newCalc.Spec.Steps[r.Step].Status = r.Status // TODO add the rest of the resutls here
 
-		_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(newCalc)
+		_, err = c.calculationClientSet.CalculationsV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
 		return err
 	})
 }

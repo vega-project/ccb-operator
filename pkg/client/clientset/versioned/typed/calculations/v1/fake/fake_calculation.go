@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -38,7 +40,7 @@ var calculationsResource = schema.GroupVersionResource{Group: "calculations.vega
 var calculationsKind = schema.GroupVersionKind{Group: "calculations.vega.io", Version: "v1", Kind: "Calculation"}
 
 // Get takes name of the calculation, and returns the corresponding calculation object, and an error if there is any.
-func (c *FakeCalculations) Get(name string, options v1.GetOptions) (result *calculationsv1.Calculation, err error) {
+func (c *FakeCalculations) Get(ctx context.Context, name string, options v1.GetOptions) (result *calculationsv1.Calculation, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootGetAction(calculationsResource, name), &calculationsv1.Calculation{})
 	if obj == nil {
@@ -48,7 +50,7 @@ func (c *FakeCalculations) Get(name string, options v1.GetOptions) (result *calc
 }
 
 // List takes label and field selectors, and returns the list of Calculations that match those selectors.
-func (c *FakeCalculations) List(opts v1.ListOptions) (result *calculationsv1.CalculationList, err error) {
+func (c *FakeCalculations) List(ctx context.Context, opts v1.ListOptions) (result *calculationsv1.CalculationList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootListAction(calculationsResource, calculationsKind, opts), &calculationsv1.CalculationList{})
 	if obj == nil {
@@ -69,13 +71,13 @@ func (c *FakeCalculations) List(opts v1.ListOptions) (result *calculationsv1.Cal
 }
 
 // Watch returns a watch.Interface that watches the requested calculations.
-func (c *FakeCalculations) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCalculations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(calculationsResource, opts))
 }
 
 // Create takes the representation of a calculation and creates it.  Returns the server's representation of the calculation, and an error, if there is any.
-func (c *FakeCalculations) Create(calculation *calculationsv1.Calculation) (result *calculationsv1.Calculation, err error) {
+func (c *FakeCalculations) Create(ctx context.Context, calculation *calculationsv1.Calculation, opts v1.CreateOptions) (result *calculationsv1.Calculation, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootCreateAction(calculationsResource, calculation), &calculationsv1.Calculation{})
 	if obj == nil {
@@ -85,7 +87,7 @@ func (c *FakeCalculations) Create(calculation *calculationsv1.Calculation) (resu
 }
 
 // Update takes the representation of a calculation and updates it. Returns the server's representation of the calculation, and an error, if there is any.
-func (c *FakeCalculations) Update(calculation *calculationsv1.Calculation) (result *calculationsv1.Calculation, err error) {
+func (c *FakeCalculations) Update(ctx context.Context, calculation *calculationsv1.Calculation, opts v1.UpdateOptions) (result *calculationsv1.Calculation, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootUpdateAction(calculationsResource, calculation), &calculationsv1.Calculation{})
 	if obj == nil {
@@ -95,22 +97,22 @@ func (c *FakeCalculations) Update(calculation *calculationsv1.Calculation) (resu
 }
 
 // Delete takes name of the calculation and deletes it. Returns an error if one occurs.
-func (c *FakeCalculations) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeCalculations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewRootDeleteAction(calculationsResource, name), &calculationsv1.Calculation{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCalculations) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(calculationsResource, listOptions)
+func (c *FakeCalculations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewRootDeleteCollectionAction(calculationsResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &calculationsv1.CalculationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched calculation.
-func (c *FakeCalculations) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *calculationsv1.Calculation, err error) {
+func (c *FakeCalculations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *calculationsv1.Calculation, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(calculationsResource, name, pt, data, subresources...), &calculationsv1.Calculation{})
 	if obj == nil {

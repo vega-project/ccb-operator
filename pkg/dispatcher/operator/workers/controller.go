@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -36,6 +38,7 @@ const (
 
 // Controller ...
 type Controller struct {
+	ctx               context.Context
 	podLister         listers.PodLister
 	calculationLister calclisters.CalculationLister
 	kubeClient        kubernetes.Interface
@@ -174,20 +177,11 @@ func (c *Controller) assignCalulationDB() (string, string, string) {
 		c.logger.WithError(err).Error("redis error")
 	}
 
-	toUpdate := make(map[string]interface{})
-
 	for _, vz := range vzList {
 		status := c.redisClient.HMGet(vz, "status").Val()[0]
 		if status == nil {
 			teff := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "teff").Val()[0])
 			logG := fmt.Sprintf("%v", c.redisClient.HMGet(vz, "logG").Val()[0])
-
-			// set status
-			toUpdate["status"] = "Processing"
-
-			c.logger.WithFields(logrus.Fields{"vz": vz, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
-			c.redisClient.HMSet(vz, toUpdate)
-
 			return vz, teff, logG
 		}
 	}
@@ -220,11 +214,19 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 
 	c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = c.calculationClient.CalculationsV1().Calculations().Create(calculation)
+		_, err = c.calculationClient.CalculationsV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
 		return err
 	}); err != nil {
 		c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")
 		return err
+	}
+
+	toUpdate := make(map[string]interface{})
+	toUpdate["status"] = "Processing"
+
+	c.logger.WithFields(logrus.Fields{"dbKey": dbKey, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
+	if boolCmd := c.redisClient.HMSet(dbKey, toUpdate); boolCmd.Err() != nil {
+		return fmt.Errorf("couldn't update status in database: %v", boolCmd.Err())
 	}
 
 	return nil

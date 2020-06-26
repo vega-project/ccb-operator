@@ -50,9 +50,9 @@ func (op *Operator) Initialize() {
 	op.kubeInformer = kubeinformers.NewSharedInformerFactoryWithOptions(op.kubeclientset, 30*time.Second,
 		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 			options.LabelSelector = fields.Set{"name": "vega-worker"}.AsSelector().String()
-		}))
+		}), kubeinformers.WithNamespace("vega"))
 
-	op.informer = informers.NewSharedInformerFactory(op.vegaclientset, 30*time.Second)
+	op.informer = informers.NewSharedInformerFactoryWithOptions(op.vegaclientset, 30*time.Second, informers.WithNamespace("vega"))
 	runtime.Must(calculationscheme.AddToScheme(scheme.Scheme))
 
 	// TODO: password: Get from Secret
@@ -64,7 +64,6 @@ func (op *Operator) Initialize() {
 
 	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Calculations().V1().Calculations(), redisClient)
 	op.podsController = workers.NewController(op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Calculations().V1().Calculations().Lister(), redisClient)
-
 }
 
 // Run starts the calculation and pod controllers.

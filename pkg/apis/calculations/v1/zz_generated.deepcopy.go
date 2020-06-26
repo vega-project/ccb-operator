@@ -56,7 +56,7 @@ func (in *Calculation) DeepCopyObject() runtime.Object {
 func (in *CalculationList) DeepCopyInto(out *CalculationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Calculation, len(*in))
