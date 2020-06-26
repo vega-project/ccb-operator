@@ -32,12 +32,12 @@ import (
 
 // FakeCalculations implements CalculationInterface
 type FakeCalculations struct {
-	Fake *FakeCalculationsV1
+	Fake *FakeVegaV1
 }
 
-var calculationsResource = schema.GroupVersionResource{Group: "calculations.vega.io", Version: "v1", Resource: "calculations"}
+var calculationsResource = schema.GroupVersionResource{Group: "vega.io", Version: "v1", Resource: "calculations"}
 
-var calculationsKind = schema.GroupVersionKind{Group: "calculations.vega.io", Version: "v1", Kind: "Calculation"}
+var calculationsKind = schema.GroupVersionKind{Group: "vega.io", Version: "v1", Kind: "Calculation"}
 
 // Get takes name of the calculation, and returns the corresponding calculation object, and an error if there is any.
 func (c *FakeCalculations) Get(ctx context.Context, name string, options v1.GetOptions) (result *calculationsv1.Calculation, err error) {

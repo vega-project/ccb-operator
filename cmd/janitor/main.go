@@ -49,7 +49,7 @@ func (o *options) validate() error {
 
 type controller struct {
 	ctx           context.Context
-	calcInterface calculationsv1.CalculationsV1Interface
+	calcInterface calculationsv1.VegaV1Interface
 	retention     time.Duration
 	logger        *logrus.Entry
 }
@@ -127,7 +127,7 @@ func main() {
 		ctx:           ctx,
 		logger:        logrus.NewEntry(logrus.StandardLogger()),
 		retention:     o.retention,
-		calcInterface: calcClient.CalculationsV1(),
+		calcInterface: calcClient.VegaV1(),
 	}
 
 	stopCh := make(chan struct{})

@@ -65,8 +65,8 @@ func (op *Operator) Initialize() {
 		DB:       0,
 	})
 
-	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Calculations().V1().Calculations(), redisClient)
-	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Calculations().V1().Calculations().Lister(), redisClient)
+	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Vega().V1().Calculations(), redisClient)
+	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Vega().V1().Calculations().Lister(), redisClient)
 }
 
 // Run starts the calculation and pod controllers.

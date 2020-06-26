@@ -64,7 +64,7 @@ func main() {
 	}
 
 	informer := informers.NewSharedInformerFactory(vegaClient, 30*time.Second)
-	controller := resultcollector.NewController(vegaClient, informer.Calculations().V1().Calculations(), o.calculationsDir, o.resultsDir)
+	controller := resultcollector.NewController(vegaClient, informer.Vega().V1().Calculations(), o.calculationsDir, o.resultsDir)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)

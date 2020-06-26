@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
-	fakecalculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1/fake"
+	vegav1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	fakevegav1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -76,7 +76,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// CalculationsV1 retrieves the CalculationsV1Client
-func (c *Clientset) CalculationsV1() calculationsv1.CalculationsV1Interface {
-	return &fakecalculationsv1.FakeCalculationsV1{Fake: &c.Fake}
+// VegaV1 retrieves the VegaV1Client
+func (c *Clientset) VegaV1() vegav1.VegaV1Interface {
+	return &fakevegav1.FakeVegaV1{Fake: &c.Fake}
 }

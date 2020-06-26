@@ -24,22 +24,22 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-type CalculationsV1Interface interface {
+type VegaV1Interface interface {
 	RESTClient() rest.Interface
 	CalculationsGetter
 }
 
-// CalculationsV1Client is used to interact with features provided by the calculations.vega.io group.
-type CalculationsV1Client struct {
+// VegaV1Client is used to interact with features provided by the vega.io group.
+type VegaV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *CalculationsV1Client) Calculations() CalculationInterface {
+func (c *VegaV1Client) Calculations() CalculationInterface {
 	return newCalculations(c)
 }
 
-// NewForConfig creates a new CalculationsV1Client for the given config.
-func NewForConfig(c *rest.Config) (*CalculationsV1Client, error) {
+// NewForConfig creates a new VegaV1Client for the given config.
+func NewForConfig(c *rest.Config) (*VegaV1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -48,12 +48,12 @@ func NewForConfig(c *rest.Config) (*CalculationsV1Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &CalculationsV1Client{client}, nil
+	return &VegaV1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new CalculationsV1Client for the given config and
+// NewForConfigOrDie creates a new VegaV1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *CalculationsV1Client {
+func NewForConfigOrDie(c *rest.Config) *VegaV1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -61,9 +61,9 @@ func NewForConfigOrDie(c *rest.Config) *CalculationsV1Client {
 	return client
 }
 
-// New creates a new CalculationsV1Client for the given RESTClient.
-func New(c rest.Interface) *CalculationsV1Client {
-	return &CalculationsV1Client{c}
+// New creates a new VegaV1Client for the given RESTClient.
+func New(c rest.Interface) *VegaV1Client {
+	return &VegaV1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
@@ -81,7 +81,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *CalculationsV1Client) RESTClient() rest.Interface {
+func (c *VegaV1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

@@ -62,7 +62,7 @@ func (op *Operator) Initialize() {
 	op.executor = executor.NewExecutor(executeChan, stepUpdaterChan, op.nfsPath,
 		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile)
 
-	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Calculations().V1().Calculations(), executeChan, stepUpdaterChan, op.hostname)
+	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Vega().V1().Calculations(), executeChan, stepUpdaterChan, op.hostname)
 }
 
 func (op *Operator) Run(stopCh <-chan struct{}) error {

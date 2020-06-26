@@ -215,7 +215,7 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 
 	c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = c.calculationClient.CalculationsV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
+		_, err = c.calculationClient.VegaV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
 		return err
 	}); err != nil {
 		c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")

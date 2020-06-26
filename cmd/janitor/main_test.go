@@ -108,7 +108,7 @@ func TestClean(t *testing.T) {
 				}
 				return false, nil, nil
 			})
-			client := fakecs.CalculationsV1()
+			client := fakecs.VegaV1()
 			retention, _ := time.ParseDuration("10m")
 
 			for _, calc := range tc.calculations {
