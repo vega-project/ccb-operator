@@ -28,7 +28,7 @@ type options struct {
 	dryRun bool
 	port   int
 
-	client v1.CalculationsV1Interface
+	client v1.VegaV1Interface
 }
 
 const (
@@ -179,7 +179,7 @@ func main() {
 	if o.dryRun {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
-		o.client = fakecs.CalculationsV1()
+		o.client = fakecs.VegaV1()
 		if err := dryRun(o.ctx, o.client); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
@@ -196,7 +196,7 @@ func main() {
 
 }
 
-func dryRun(ctx context.Context, fakeClient v1.CalculationsV1Interface) error {
+func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	var dryCalcList []*calculationsv1.Calculation
 
 	// Generate fake calculations
@@ -274,14 +274,14 @@ func dryRun(ctx context.Context, fakeClient v1.CalculationsV1Interface) error {
 	return nil
 }
 
-func calcsSimulator(ctx context.Context, fakeClient v1.CalculationsV1Interface, calcNameList []string, workerName string) {
+func calcsSimulator(ctx context.Context, fakeClient v1.VegaV1Interface, calcNameList []string, workerName string) {
 	for _, calcName := range calcNameList {
 		logger := logrus.WithFields(logrus.Fields{"calculation": calcName, "worker": workerName})
 		simulateRun(ctx, fakeClient, calcName, logger)
 	}
 }
 
-func simulateRun(ctx context.Context, fakeClient v1.CalculationsV1Interface, calcName string, logger *logrus.Entry) {
+func simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName string, logger *logrus.Entry) {
 	logger.Info("Starting simulation")
 
 	ticker := time.NewTicker(dryTickerMinutes * time.Minute)

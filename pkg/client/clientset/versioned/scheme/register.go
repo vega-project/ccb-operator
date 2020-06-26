@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	vegav1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,7 +31,7 @@ var Scheme = runtime.NewScheme()
 var Codecs = serializer.NewCodecFactory(Scheme)
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	calculationsv1.AddToScheme,
+	vegav1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

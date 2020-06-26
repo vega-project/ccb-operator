@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	vegav1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,19 +29,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	CalculationsV1() calculationsv1.CalculationsV1Interface
+	VegaV1() vegav1.VegaV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	calculationsV1 *calculationsv1.CalculationsV1Client
+	vegaV1 *vegav1.VegaV1Client
 }
 
-// CalculationsV1 retrieves the CalculationsV1Client
-func (c *Clientset) CalculationsV1() calculationsv1.CalculationsV1Interface {
-	return c.calculationsV1
+// VegaV1 retrieves the VegaV1Client
+func (c *Clientset) VegaV1() vegav1.VegaV1Interface {
+	return c.vegaV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +65,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.calculationsV1, err = calculationsv1.NewForConfig(&configShallowCopy)
+	cs.vegaV1, err = vegav1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.calculationsV1 = calculationsv1.NewForConfigOrDie(c)
+	cs.vegaV1 = vegav1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.calculationsV1 = calculationsv1.New(c)
+	cs.vegaV1 = vegav1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

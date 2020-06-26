@@ -61,13 +61,13 @@ func NewFilteredCalculationInformer(client versioned.Interface, resyncPeriod tim
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CalculationsV1().Calculations().List(context.TODO(), options)
+				return client.VegaV1().Calculations().List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CalculationsV1().Calculations().Watch(context.TODO(), options)
+				return client.VegaV1().Calculations().Watch(context.TODO(), options)
 			},
 		},
 		&calculationsv1.Calculation{},

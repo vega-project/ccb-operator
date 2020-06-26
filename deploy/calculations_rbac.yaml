@@ -23,13 +23,7 @@ items:
       resources:
         - calculations
       verbs:
-        - get
-        - list
-        - create
-        - delete
-        - update
-        - patch
-        - watch
+        - '*'
 - kind: ClusterRole
   apiVersion: rbac.authorization.k8s.io/v1beta1
   metadata:
@@ -40,11 +34,5 @@ items:
       resources:
         - endpoints
       verbs:
-        - get
-        - list
-        - create
-        - delete
-        - update
-        - patch
-        - watch
+        - '*'
 

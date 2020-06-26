@@ -55,7 +55,7 @@ type calculations struct {
 }
 
 // newCalculations returns a Calculations
-func newCalculations(c *CalculationsV1Client) *calculations {
+func newCalculations(c *VegaV1Client) *calculations {
 	return &calculations{
 		client: c.RESTClient(),
 	}

@@ -172,9 +172,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Calculations() calculations.Interface
+	Vega() calculations.Interface
 }
 
-func (f *sharedInformerFactory) Calculations() calculations.Interface {
+func (f *sharedInformerFactory) Vega() calculations.Interface {
 	return calculations.New(f, f.namespace, f.tweakListOptions)
 }
