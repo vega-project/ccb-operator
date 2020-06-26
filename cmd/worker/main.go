@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -97,7 +98,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	op := worker.NewMainOperator(kubeclient, vegaClient, hostname, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	op := worker.NewMainOperator(ctx, kubeclient, vegaClient, hostname, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile)
 
 	// Initialize operator
 	op.Initialize()

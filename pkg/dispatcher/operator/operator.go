@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 )
 
 type Operator struct {
+	ctx                    context.Context
 	logger                 *logrus.Logger
 	kubeclientset          kubernetes.Interface
 	vegaclientset          clientset.Interface
@@ -34,10 +36,11 @@ type Operator struct {
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
+		ctx:           ctx,
 		logger:        logger,
 		kubeclientset: kubeclientset,
 		vegaclientset: vegaclientset,
@@ -63,7 +66,7 @@ func (op *Operator) Initialize() {
 	})
 
 	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Calculations().V1().Calculations(), redisClient)
-	op.podsController = workers.NewController(op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Calculations().V1().Calculations().Lister(), redisClient)
+	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Calculations().V1().Calculations().Lister(), redisClient)
 }
 
 // Run starts the calculation and pod controllers.

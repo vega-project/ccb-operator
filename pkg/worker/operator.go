@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 )
 
 type Operator struct {
+	ctx                      context.Context
 	logger                   *logrus.Logger
 	kubeclientset            kubernetes.Interface
 	vegaclientset            clientset.Interface
@@ -33,10 +35,11 @@ type Operator struct {
 	synspecInputTemplateFile string
 }
 
-func NewMainOperator(kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, hostname, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, hostname, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
+		ctx:                      ctx,
 		logger:                   logger,
 		hostname:                 hostname,
 		kubeclientset:            kubeclientset,
@@ -59,7 +62,7 @@ func (op *Operator) Initialize() {
 	op.executor = executor.NewExecutor(executeChan, stepUpdaterChan, op.nfsPath,
 		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile)
 
-	op.calculationsController = NewController(op.vegaclientset, op.informer.Calculations().V1().Calculations(), executeChan, stepUpdaterChan, op.hostname)
+	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Calculations().V1().Calculations(), executeChan, stepUpdaterChan, op.hostname)
 }
 
 func (op *Operator) Run(stopCh <-chan struct{}) error {
