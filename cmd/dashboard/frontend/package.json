@@ -37,6 +37,7 @@
     "react-dom": "^16.6.3",
     "regenerator-runtime": "^0.13.1",
     "rimraf": "^2.6.2",
+    "serialize-javascript": "^4.0.0",
     "style-loader": "^0.23.1",
     "svg-url-loader": "^2.3.2",
     "uglifyjs-webpack-plugin": "^2.0.1",
