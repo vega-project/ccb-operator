@@ -5,10 +5,8 @@ import EmptyStateSpinner from '../../PresentationalComponents/EmptyStateSpinner/
 import Calculations from '../../../../services/Calculations';
 import {
     TEFF_LOG_GRID,
-    TEFF_TURB_GRID,
     effectiveTemperatureAxes,
-    surfaceGravityAxes,
-    microturbulanceAxes
+    surfaceGravityAxes
 } from '../../../constants';
 
 const DashboardTabs = () => {

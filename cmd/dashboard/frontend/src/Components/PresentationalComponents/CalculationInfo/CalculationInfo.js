@@ -8,13 +8,9 @@ import Calculations from '../../../../services/Calculations';
 import {
     TextContent,
     Text,
-    TextVariants,
-    TextList,
-    TextListVariants,
-    TextListItem,
-    TextListItemVariants
-  } from '@patternfly/react-core';
-  import { Stack, StackItem } from '@patternfly/react-core';
+    TextVariants
+} from '@patternfly/react-core';
+import { Stack, StackItem } from '@patternfly/react-core';
 
 const CalculationInfo = ({ calculation }) => {
     const [data, setData] = useState(undefined);
@@ -32,10 +28,10 @@ const CalculationInfo = ({ calculation }) => {
         <Fragment>
             <Flex>
                 <FlexItem>
-                {data && <Card>
+                    {data && <Card>
                         <CardHeader>Model </CardHeader>
                         <CardBody>
-                        <TextContent>
+                            <TextContent>
                                 <Stack>
                                     <StackItem><Text component={TextVariants.p}>ATLAS</Text></StackItem>
                                     <StackItem >Teff = {data.spec.Teff} K</StackItem>
@@ -44,24 +40,23 @@ const CalculationInfo = ({ calculation }) => {
                                     <StackItem >Vmicro = 0 km/s</StackItem>
                                     <StackItem>status = {data.spec.status}</StackItem>
                                 </Stack>
-                                
+
                             </TextContent>
                         </CardBody>
                     </Card>
-                }
+                    }
                 </FlexItem>
-        
 
                 <FlexItem>
-                <Card isFlat>
-                    <CardHeader>Surface distribution </CardHeader>
-                    <CardBody>Body</CardBody>
-                </Card>
+                    <Card isFlat>
+                        <CardHeader>Surface distribution </CardHeader>
+                        <CardBody>Body</CardBody>
+                    </Card>
                 </FlexItem>
             </Flex>
         </Fragment>
-    )
-}
+    );
+};
 
 CalculationInfo.propTypes = {
     calculation: PropTypes.string.isRequired
