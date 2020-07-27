@@ -29,4 +29,12 @@ Run the test suite
 Run the linter
 `yarn lint`
 
+## Run backend dry-run
+Change directory to `cmd/dashboard/backend` and run
+```bash
+go build 
+./backend --port PORT
+```
+The default port is `8080`. 
+
 
