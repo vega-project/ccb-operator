@@ -3,17 +3,16 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import YAxisLabel from './YAxisLabel/YAxisLabel';
 import XAxisLabel from './XAxisLabel/XAxisLabel';
-import TableToolBar from '../TableToolbar/TableToolBar'
-import CalculationInfo from '../CalculationInfo/CalculationInfo'
+import TableToolBar from '../TableToolbar/TableToolBar';
+import CalculationInfo from '../CalculationInfo/CalculationInfo';
 
 const Table = ({ xaxis, yaxis, columns, rows, data }) => {
     const [selected, setSelected] = useState();
-    const [calcName, setCalcName] = useState()
-    const calculations = []
+    const [calcName, setCalcName] = useState();
+    const calculations = [];
 
     const handleSelectRow = (event, column, row, columnIndex, rowIndex) => {
-        let calcName = event.target.parentElement.getAttribute('data-calc-name')
-        console.log(event.target.parentElement)
+        let calcName = event.target.parentElement.getAttribute('data-calc-name');
         setCalcName(calcName);
         setSelected(`${column}-${row}`);
     };
@@ -22,16 +21,16 @@ const Table = ({ xaxis, yaxis, columns, rows, data }) => {
         let filtered = data && data.items.filter(({ spec }) => spec.Teff === teff && spec.LogG === logG);
         calculations[index] = filtered;
         return filtered;
-    }
- 
+    };
+
     const getCalcName = (index) => {
-        if (calculations[index].length > 0) {
-            let [calc] = calculations[index]
+        if (calculations[index] && calculations[index].length > 0) {
+            let [calc] = calculations[index];
             return calc.metadata.name;
         }
-        
+
         return null;
-    }
+    };
 
     const getComputedStyle = (logG, teff, index) => {
         let phase = '';
@@ -78,7 +77,7 @@ const Table = ({ xaxis, yaxis, columns, rows, data }) => {
             </table>
             { selected &&  <TableToolBar /> }
             { selected &&  <CalculationInfo calculation={calcName}/> }
-           
+
         </Fragment>
     );
 };
