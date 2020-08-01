@@ -6,7 +6,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
 // NewCalculation gets the values of teff and logG and creates a calculation
@@ -41,4 +41,8 @@ func NewCalculation(teff, logG float64) *v1.Calculation {
 	}
 
 	return calculation
+}
+
+func GetCalculationName(teff, logG float64) string {
+	return fmt.Sprintf("calc-%s", InputHash([]byte(fmt.Sprintf("%f", teff)), []byte(fmt.Sprintf("%f", logG))))
 }

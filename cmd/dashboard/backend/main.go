@@ -25,19 +25,16 @@ import (
 type options struct {
 	ctx context.Context
 
+	dryCalculationsTotal int
+	dryRunFailureRate    int
+	dryWorkers           int
+	dryTickerMinutes     int
+
 	dryRun bool
 	port   int
 
 	client v1.VegaV1Interface
 }
-
-const (
-	// TODO: flag them
-	dryCalculationsTotal = 100
-	dryRunFailureRate    = 20
-	dryWorkers           = 10
-	dryTickerMinutes     = 1
-)
 
 type Response struct {
 	Message    string `json:"message,omitempty"`
@@ -51,6 +48,11 @@ func gatherOptions() options {
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
 
+	fs.IntVar(&o.dryCalculationsTotal, "dry-total-calculations", 100, "Number of total calculations (dry-run)")
+	fs.IntVar(&o.dryRunFailureRate, "dry-failure-rate", 20, "Calculations failure rate in percentage (dry-run)")
+	fs.IntVar(&o.dryWorkers, "dry-workers", 10, "Number of workers (dry-run)")
+	fs.IntVar(&o.dryTickerMinutes, "dry-ticker", 1, "Minutes per calculation update (dry-run)")
+
 	fs.Parse(os.Args[1:])
 	return o
 }
@@ -61,7 +63,7 @@ type newCalc struct {
 }
 
 func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
+	if r.Method != "POST" {
 		return
 	}
 
@@ -137,6 +139,9 @@ func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	calcList, err := o.client.Calculations().List(o.ctx, metav1.ListOptions{})
@@ -151,7 +156,10 @@ func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
+func (o *options) getCalculationByName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	calcID := mux.Vars(r)["id"]
@@ -160,6 +168,49 @@ func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcID, err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(calc)
+	}
+}
+
+func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	r.ParseForm()
+
+	teff := r.Form.Get("teff")
+	logG := r.Form.Get("logG")
+
+	t, err := strconv.ParseFloat(teff, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("teff is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	l, err := strconv.ParseFloat(logG, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("logG is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	calcName := util.GetCalculationName(t, l)
+	calc, err := o.client.Calculations().Get(o.ctx, calcName, metav1.GetOptions{})
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcName, err),
 			StatusCode: 500,
 		}
 		json.NewEncoder(w).Encode(e)
@@ -180,14 +231,15 @@ func main() {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
 		o.client = fakecs.VegaV1()
-		if err := dryRun(o.ctx, o.client); err != nil {
+		if err := o.startDryRun(o.ctx, o.client); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/calculations", o.getCalculations)
-	router.HandleFunc("/calculation/{id}", o.getCalculation)
+	router.HandleFunc("/calculation/{id}", o.getCalculationByName)
+	router.HandleFunc("/calculation", o.getCalculation)
 	router.HandleFunc("/calculations/create", o.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", o.deleteCalculation)
 
@@ -196,58 +248,27 @@ func main() {
 
 }
 
-func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
+func (o *options) startDryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	var dryCalcList []*calculationsv1.Calculation
 
 	// Generate fake calculations
 	teff := 10000
-	for teff != 10000+dryCalculationsTotal {
+	for teff != 10000+o.dryCalculationsTotal {
 		teff++
 
-		calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(strconv.Itoa(teff)), []byte("4.00")))
-		calcSpec := calculationsv1.CalculationSpec{
-			Teff: float64(teff),
-			LogG: 4.00,
-			Steps: []calculationsv1.Step{
-				{
-					Command: "atlas12_ada",
-					Args:    []string{"s"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-				{
-					Command: "atlas12_ada",
-					Args:    []string{"r"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-				{
-					Command: "synspec49",
-					Args:    []string{"<", "input_tlusty_fortfive"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-			},
-		}
+		newCalc := util.NewCalculation(float64(teff), 4.0)
+		newCalc.DBKey = fmt.Sprintf("vz.star:teff_%d", teff)
 
-		calc := &calculationsv1.Calculation{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Calculation",
-				APIVersion: "vega.io/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: calcName},
-			DBKey:      fmt.Sprintf("vz.star:teff_%d", teff),
-			Phase:      calculationsv1.CreatedPhase,
+		dryCalcList = append(dryCalcList, newCalc)
 
-			Spec: calcSpec,
-		}
-
-		dryCalcList = append(dryCalcList, calc)
-		logrus.WithField("calculation", calcName).Info("Creating calculation")
-		if _, err := fakeClient.Calculations().Create(ctx, calc, metav1.CreateOptions{}); err != nil {
-			return fmt.Errorf("couldn't create calculation: %v", calc)
+		logrus.WithFields(logrus.Fields{"calculation": newCalc.Name, "teff": teff, "logG": "4.0"}).Info("Creating calculation")
+		if _, err := fakeClient.Calculations().Create(ctx, newCalc, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("couldn't create calculation: %v", newCalc)
 		}
 	}
 
 	var divided [][]*calculationsv1.Calculation
-	chunkSize := dryCalculationsTotal / dryWorkers
+	chunkSize := o.dryCalculationsTotal / o.dryWorkers
 	for i := 0; i < len(dryCalcList); i += chunkSize {
 		end := i + chunkSize
 		if end > len(dryCalcList) {
@@ -269,22 +290,22 @@ func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	}
 
 	for worker, calcNameList := range calcsByWorker {
-		go calcsSimulator(ctx, fakeClient, calcNameList, worker)
+		go o.calcsSimulator(ctx, fakeClient, calcNameList, worker)
 	}
 	return nil
 }
 
-func calcsSimulator(ctx context.Context, fakeClient v1.VegaV1Interface, calcNameList []string, workerName string) {
+func (o *options) calcsSimulator(ctx context.Context, fakeClient v1.VegaV1Interface, calcNameList []string, workerName string) {
 	for _, calcName := range calcNameList {
 		logger := logrus.WithFields(logrus.Fields{"calculation": calcName, "worker": workerName})
-		simulateRun(ctx, fakeClient, calcName, logger)
+		o.simulateRun(ctx, fakeClient, calcName, logger)
 	}
 }
 
-func simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName string, logger *logrus.Entry) {
+func (o *options) simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName string, logger *logrus.Entry) {
 	logger.Info("Starting simulation")
 
-	ticker := time.NewTicker(dryTickerMinutes * time.Minute)
+	ticker := time.NewTicker(time.Duration(o.dryTickerMinutes) * time.Minute)
 	defer ticker.Stop()
 	done := make(chan bool)
 
@@ -357,7 +378,7 @@ func simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName st
 						goto End
 
 					case calculationsv1.ProcessingPhase:
-						newCalc.Spec.Steps[index].Status = getPhaseWithFailureChance(dryRunFailureRate)
+						newCalc.Spec.Steps[index].Status = getPhaseWithFailureChance(o.dryRunFailureRate)
 						goto End
 
 					case calculationsv1.CreatedPhase:
