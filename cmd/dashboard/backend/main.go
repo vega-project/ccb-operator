@@ -63,7 +63,7 @@ type newCalc struct {
 }
 
 func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
+	if r.Method != "POST" {
 		return
 	}
 
@@ -139,6 +139,9 @@ func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	calcList, err := o.client.Calculations().List(o.ctx, metav1.ListOptions{})
@@ -153,7 +156,10 @@ func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
+func (o *options) getCalculationByName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	calcID := mux.Vars(r)["id"]
@@ -162,6 +168,49 @@ func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		e := Response{
 			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcID, err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+	} else {
+		json.NewEncoder(w).Encode(calc)
+	}
+}
+
+func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	r.ParseForm()
+
+	teff := r.Form.Get("teff")
+	logG := r.Form.Get("logG")
+
+	t, err := strconv.ParseFloat(teff, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("teff is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	l, err := strconv.ParseFloat(logG, 64)
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("logG is not a valid float64 number: %v", err),
+			StatusCode: 500,
+		}
+		json.NewEncoder(w).Encode(e)
+		return
+	}
+
+	calcName := util.GetCalculationName(t, l)
+	calc, err := o.client.Calculations().Get(o.ctx, calcName, metav1.GetOptions{})
+	if err != nil {
+		e := Response{
+			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcName, err),
 			StatusCode: 500,
 		}
 		json.NewEncoder(w).Encode(e)
@@ -189,7 +238,8 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/calculations", o.getCalculations)
-	router.HandleFunc("/calculation/{id}", o.getCalculation)
+	router.HandleFunc("/calculation/{id}", o.getCalculationByName)
+	router.HandleFunc("/calculation", o.getCalculation)
 	router.HandleFunc("/calculations/create", o.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", o.deleteCalculation)
 
@@ -206,45 +256,14 @@ func (o *options) startDryRun(ctx context.Context, fakeClient v1.VegaV1Interface
 	for teff != 10000+o.dryCalculationsTotal {
 		teff++
 
-		calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(strconv.Itoa(teff)), []byte("4.00")))
-		calcSpec := calculationsv1.CalculationSpec{
-			Teff: float64(teff),
-			LogG: 4.00,
-			Steps: []calculationsv1.Step{
-				{
-					Command: "atlas12_ada",
-					Args:    []string{"s"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-				{
-					Command: "atlas12_ada",
-					Args:    []string{"r"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-				{
-					Command: "synspec49",
-					Args:    []string{"<", "input_tlusty_fortfive"},
-					Status:  calculationsv1.CreatedPhase,
-				},
-			},
-		}
+		newCalc := util.NewCalculation(float64(teff), 4.0)
+		newCalc.DBKey = fmt.Sprintf("vz.star:teff_%d", teff)
 
-		calc := &calculationsv1.Calculation{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Calculation",
-				APIVersion: "vega.io/v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: calcName},
-			DBKey:      fmt.Sprintf("vz.star:teff_%d", teff),
-			Phase:      calculationsv1.CreatedPhase,
+		dryCalcList = append(dryCalcList, newCalc)
 
-			Spec: calcSpec,
-		}
-
-		dryCalcList = append(dryCalcList, calc)
-		logrus.WithField("calculation", calcName).Info("Creating calculation")
-		if _, err := fakeClient.Calculations().Create(ctx, calc, metav1.CreateOptions{}); err != nil {
-			return fmt.Errorf("couldn't create calculation: %v", calc)
+		logrus.WithFields(logrus.Fields{"calculation": newCalc.Name, "teff": teff, "logG": "4.0"}).Info("Creating calculation")
+		if _, err := fakeClient.Calculations().Create(ctx, newCalc, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("couldn't create calculation: %v", newCalc)
 		}
 	}
 
