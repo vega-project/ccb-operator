@@ -25,19 +25,16 @@ import (
 type options struct {
 	ctx context.Context
 
+	dryCalculationsTotal int
+	dryRunFailureRate    int
+	dryWorkers           int
+	dryTickerMinutes     int
+
 	dryRun bool
 	port   int
 
 	client v1.VegaV1Interface
 }
-
-const (
-	// TODO: flag them
-	dryCalculationsTotal = 100
-	dryRunFailureRate    = 20
-	dryWorkers           = 10
-	dryTickerMinutes     = 1
-)
 
 type Response struct {
 	Message    string `json:"message,omitempty"`
@@ -50,6 +47,11 @@ func gatherOptions() options {
 
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
+
+	fs.IntVar(&o.dryCalculationsTotal, "dry-total-calculations", 100, "Number of total calculations (dry-run)")
+	fs.IntVar(&o.dryRunFailureRate, "dry-failure-rate", 20, "Calculations failure rate in percentage (dry-run)")
+	fs.IntVar(&o.dryWorkers, "dry-workers", 10, "Number of workers (dry-run)")
+	fs.IntVar(&o.dryTickerMinutes, "dry-ticker", 1, "Minutes per calculation update (dry-run)")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -180,7 +182,7 @@ func main() {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
 		o.client = fakecs.VegaV1()
-		if err := dryRun(o.ctx, o.client); err != nil {
+		if err := o.startDryRun(o.ctx, o.client); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
 	}
@@ -196,12 +198,12 @@ func main() {
 
 }
 
-func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
+func (o *options) startDryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	var dryCalcList []*calculationsv1.Calculation
 
 	// Generate fake calculations
 	teff := 10000
-	for teff != 10000+dryCalculationsTotal {
+	for teff != 10000+o.dryCalculationsTotal {
 		teff++
 
 		calcName := fmt.Sprintf("calc-%s", util.InputHash([]byte(strconv.Itoa(teff)), []byte("4.00")))
@@ -247,7 +249,7 @@ func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	}
 
 	var divided [][]*calculationsv1.Calculation
-	chunkSize := dryCalculationsTotal / dryWorkers
+	chunkSize := o.dryCalculationsTotal / o.dryWorkers
 	for i := 0; i < len(dryCalcList); i += chunkSize {
 		end := i + chunkSize
 		if end > len(dryCalcList) {
@@ -269,22 +271,22 @@ func dryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
 	}
 
 	for worker, calcNameList := range calcsByWorker {
-		go calcsSimulator(ctx, fakeClient, calcNameList, worker)
+		go o.calcsSimulator(ctx, fakeClient, calcNameList, worker)
 	}
 	return nil
 }
 
-func calcsSimulator(ctx context.Context, fakeClient v1.VegaV1Interface, calcNameList []string, workerName string) {
+func (o *options) calcsSimulator(ctx context.Context, fakeClient v1.VegaV1Interface, calcNameList []string, workerName string) {
 	for _, calcName := range calcNameList {
 		logger := logrus.WithFields(logrus.Fields{"calculation": calcName, "worker": workerName})
-		simulateRun(ctx, fakeClient, calcName, logger)
+		o.simulateRun(ctx, fakeClient, calcName, logger)
 	}
 }
 
-func simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName string, logger *logrus.Entry) {
+func (o *options) simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName string, logger *logrus.Entry) {
 	logger.Info("Starting simulation")
 
-	ticker := time.NewTicker(dryTickerMinutes * time.Minute)
+	ticker := time.NewTicker(time.Duration(o.dryTickerMinutes) * time.Minute)
 	defer ticker.Stop()
 	done := make(chan bool)
 
@@ -357,7 +359,7 @@ func simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface, calcName st
 						goto End
 
 					case calculationsv1.ProcessingPhase:
-						newCalc.Spec.Steps[index].Status = getPhaseWithFailureChance(dryRunFailureRate)
+						newCalc.Spec.Steps[index].Status = getPhaseWithFailureChance(o.dryRunFailureRate)
 						goto End
 
 					case calculationsv1.CreatedPhase:
