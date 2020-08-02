@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -64,7 +65,10 @@ func main() {
 	}
 
 	informer := informers.NewSharedInformerFactory(vegaClient, 30*time.Second)
-	controller := resultcollector.NewController(vegaClient, informer.Vega().V1().Calculations(), o.calculationsDir, o.resultsDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	controller := resultcollector.NewController(ctx, vegaClient, informer.Vega().V1().Calculations(), o.calculationsDir, o.resultsDir)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)
