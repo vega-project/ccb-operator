@@ -88,6 +88,7 @@ func (c *controller) clean() {
 	}
 
 	for _, calc := range calculations.Items {
+		calcLogger := c.logger.WithField("calculation", calc.Name)
 		if calc.Phase != v1.CompletedPhase {
 			continue
 		}
@@ -96,11 +97,17 @@ func (c *controller) clean() {
 			continue
 		}
 
-		if err := c.calcInterface.Calculations().Delete(c.ctx, calc.Name, metav1.DeleteOptions{}); err == nil {
-			c.logger.WithField("calculation", calc.Name).Info("Deleted calculation")
-		} else {
-			c.logger.WithField("calculation", calc.Name).WithError(err).Error("Error deleting calculation")
+		if _, ok := calc.Labels[util.ResultsCollected]; !ok {
+			calcLogger.Warn("calculation passed retention but results are not collected. Skipping...")
+			continue
 		}
+
+		if err := c.calcInterface.Calculations().Delete(c.ctx, calc.Name, metav1.DeleteOptions{}); err != nil {
+			calcLogger.WithError(err).Error("Error deleting calculation")
+			continue
+		}
+
+		calcLogger.Info("Deleted calculation")
 	}
 }
 
