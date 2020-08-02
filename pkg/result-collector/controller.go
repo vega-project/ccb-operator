@@ -1,6 +1,7 @@
 package resultcollector
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,9 +11,11 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -28,19 +31,24 @@ const (
 )
 
 type Controller struct {
+	ctx context.Context
+
 	calculationLister    listers.CalculationLister
 	calculationClientSet calculationsclient.Interface
-	logger               *logrus.Entry
 	calculationsSynced   cache.InformerSynced
 	taskQueue            *util.TaskQueue
-	calculationsDir      string
-	resultsDir           string
+
+	calculationsDir string
+	resultsDir      string
+
+	logger *logrus.Entry
 }
 
-func NewController(calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, calculationsDir, resultsDir string) *Controller {
+func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, calculationsDir, resultsDir string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
+		ctx:                  ctx,
 		calculationLister:    calculationInformer.Lister(),
 		calculationsSynced:   calculationInformer.Informer().HasSynced,
 		calculationClientSet: calculationClientSet,
@@ -144,10 +152,37 @@ func (c *Controller) syncHandler(key string) error {
 					c.logger.WithError(err).Error("couldn't remove calculation folder")
 					return fmt.Errorf("%v", err)
 				}
+
+				labels := map[string]string{util.ResultsCollected: "true"}
+				if err := c.updateCalculationLabels(calculation.Name, labels); err != nil {
+					c.logger.WithError(err).Error("couldn't update calculation labels")
+					return fmt.Errorf("%v", err)
+				}
 			}
 		}
 	}
 	return nil
+}
+
+func (c *Controller) updateCalculationLabels(calcName string, labels map[string]string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+		// We need to Get the calculcation again because there is a chance that it will be changed in the cluster.
+		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, calcName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if labels != nil && newCalc.Labels == nil {
+			newCalc.Labels = make(map[string]string)
+		}
+		for k, v := range labels {
+			newCalc.Labels[k] = v
+		}
+
+		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func copy(src, dst string) (int64, error) {
