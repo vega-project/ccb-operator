@@ -17,10 +17,12 @@ import (
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/fake"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 func TestClean(t *testing.T) {
 	var ctx context.Context
+
 	testCases := []struct {
 		id              string
 		calculations    []*v1.Calculation
@@ -60,24 +62,44 @@ func TestClean(t *testing.T) {
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-3"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-3", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
 			},
 			deletedExpected: sets.NewString("calc-3"),
 		},
-
 		{
 			id: "all calculation expired, delete expected",
 			calculations: []*v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-1", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-2"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-2", Labels: map[string]string{util.ResultsCollected: "true"}},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-3", Labels: map[string]string{util.ResultsCollected: "true"}},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				},
+			},
+			deletedExpected: sets.NewString("calc-1", "calc-2", "calc-3"),
+		},
+		{
+			id: "calculations expired but there is one with no results collected, expected to skip the one",
+			calculations: []*v1.Calculation{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-1", Labels: map[string]string{util.ResultsCollected: "true"}},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-2", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
@@ -87,7 +109,7 @@ func TestClean(t *testing.T) {
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
 			},
-			deletedExpected: sets.NewString("calc-1", "calc-2", "calc-3"),
+			deletedExpected: sets.NewString("calc-1", "calc-2"),
 		},
 	}
 
