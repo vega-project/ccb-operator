@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
 	"github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/fake"
 	v1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
@@ -227,6 +228,16 @@ func main() {
 
 	o.ctx = ctx
 
+	clusterConfig, err := util.LoadClusterConfig()
+	if err != nil {
+		logrus.WithError(err).Error("could not load cluster clusterConfig")
+	}
+
+	vegaClient, err := client.NewForConfig(clusterConfig)
+	if err != nil {
+		logrus.WithError(err).Error("could not create client")
+	}
+
 	if o.dryRun {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
@@ -234,6 +245,8 @@ func main() {
 		if err := o.startDryRun(o.ctx, o.client); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
+	} else {
+		o.client = vegaClient.VegaV1()
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
