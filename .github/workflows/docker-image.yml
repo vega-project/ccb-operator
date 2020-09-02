@@ -1,0 +1,19 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: centos:7
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build worker
+      run: go build ./cmd/worker/
+      run: docker build . --file ./images/worker --tag worker:$(date +%s)
