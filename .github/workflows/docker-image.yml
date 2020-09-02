@@ -14,6 +14,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build worker
-      run: go build ./cmd/worker/
+    - name: Build worker binary
+      run: run: go build ./cmd/worker/
+    - name: Build worker image
       run: docker build . --file ./images/worker --tag worker:$(date +%s)
