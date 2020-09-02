@@ -17,4 +17,4 @@ jobs:
     - name: Build worker binary
       run: go build ./cmd/worker/
     - name: Build worker image
-      run: docker build . --file ./images/worker --tag worker:$(date +%s)
+      run: docker build . --file ./images/worker/ --tag worker:$(date +%s)
