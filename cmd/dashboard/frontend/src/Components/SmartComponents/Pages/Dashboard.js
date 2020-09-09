@@ -22,7 +22,7 @@ const DashboardPage = () => {
         .catch(error => error)
         .finally(() => setLoading(false));
     }
-
+  
     const handleDeleteCalculation = (name) => {
         Calculations.delete(name)
         .then(response => {
@@ -30,10 +30,16 @@ const DashboardPage = () => {
         })
     }
 
+    const handleCreateCalculation = (selected) => {
+        Calculations.create(...selected)
+        .then(response => {
+            fetchCalculations()
+        })
+    }
+
     useEffect(() => {
         fetchCalculations()
-    }, [loading])
-
+    }, [])
 
     return <Fragment>
         { 
@@ -47,7 +53,14 @@ const DashboardPage = () => {
             setSelected={setSelected}
         />
         }
-        {selected && !loading  && <CalcInfo selected={selected} data={data} handleDeleteCalculation={handleDeleteCalculation}/>}
+        {selected && !loading  && 
+            <CalcInfo 
+                selected={selected} 
+                data={data} 
+                handleCreateCalculation={handleCreateCalculation}
+                handleDeleteCalculation={handleDeleteCalculation}
+            />
+        }
     </Fragment>
 }
 

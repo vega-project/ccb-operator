@@ -21,8 +21,8 @@ class Http extends Client {
      * @param {String} url
      * @param {Object} data
      */
-    post(url, data) {
-        return super.request('POST', url, data);
+    post(url, params, data) {
+        return super.request('POST', url, params,  data);
     }
 
     /**
