@@ -1,11 +1,11 @@
-import { range } from './Utils/helper';
+import { range } from './helper';
 
 export const AXES_CONFIG = {
     effectiveTemperature: {
-        start: 10,
+        start: 10000,
         end: 20,
-        total: 50,
-        step: 0.1 //200
+        total: 85,
+        step: 1 //200
     },
     surfaceGravity: {
         start: 1,
@@ -34,7 +34,7 @@ export const TEFF_LOG_GRID = {
         stepper: AXES_CONFIG.surfaceGravity.step
     },
     xaxis: {
-        label: 'Teff [kK]',
+        label: 'Teff [K]',
         stepper: AXES_CONFIG.effectiveTemperature.step
     }
 
@@ -52,6 +52,6 @@ export const TEFF_TURB_GRID = {
     }
 };
 
-export const effectiveTemperatureAxes = range(AXES_CONFIG.effectiveTemperature);
+export const effectiveTemperatureAxes = range(AXES_CONFIG.effectiveTemperature, false);
 export const surfaceGravityAxes = range(AXES_CONFIG.surfaceGravity);
 export const microturbulanceAxes = range(AXES_CONFIG.microturbulance);
