@@ -24,6 +24,16 @@ class Http extends Client {
     post(url, data) {
         return super.request('POST', url, data);
     }
+
+    /**
+     * Performing a DELETE request
+     *
+     * @param {String} url
+     * @param {Object} data
+     */
+    delete(url, data) {
+        return super.request('DELETE', url, data);
+    }
 }
 
 export default new Http();

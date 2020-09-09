@@ -7,7 +7,6 @@ import {
     TEFF_LOG_GRID
 } from '../../../Utils/constants'
 import CalcInfo from '../../Presentational/CalcInfo/CalcInfo';
-import ToolbarItems from '../../Presentational/ToolBar/ToolBar'
 import { groupArrayBySpec } from '../../../Utils/helper';
  
 const DashboardPage = () => {
@@ -15,15 +14,26 @@ const DashboardPage = () => {
     const [data, setData] = useState(undefined);
     const [selected, setSelected] = useState();
 
-    console.log(selected);
-    useEffect(() => {
+    const fetchCalculations = () => {
         Calculations.all()
         .then(response => {
             setData(groupArrayBySpec(response.data.items));
         })
         .catch(error => error)
         .finally(() => setLoading(false));
-    }, [])
+    }
+
+    const handleDeleteCalculation = (name) => {
+        Calculations.delete(name)
+        .then(response => {
+            fetchCalculations()
+        })
+    }
+
+    useEffect(() => {
+        fetchCalculations()
+    }, [loading])
+
 
     return <Fragment>
         { 
@@ -37,7 +47,7 @@ const DashboardPage = () => {
             setSelected={setSelected}
         />
         }
-        {selected && !loading  && <CalcInfo selected={selected} data={data}/>}
+        {selected && !loading  && <CalcInfo selected={selected} data={data} handleDeleteCalculation={handleDeleteCalculation}/>}
     </Fragment>
 }
 
