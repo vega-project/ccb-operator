@@ -11,17 +11,21 @@ import {
     PageSection,
     Stack, 
     StackItem,
-    Divider
 } from '@patternfly/react-core';
 import { getCalculation, reverseSpec } from '../../../Utils/helper';
 import ToolbarItems from '../ToolBar/ToolBar'
 
-const CalcInfo = ({ data, selected, handleDeleteCalculation }) => {
+const CalcInfo = ({ data, selected, handleDeleteCalculation, handleCreateCalculation }) => {
     const [logG, teff] = reverseSpec(selected);
     const calc = getCalculation(data, logG, teff);
 
     return (<Fragment>
-        <ToolbarItems calc={calc} handleDeleteCalculation={handleDeleteCalculation}/>
+        <ToolbarItems 
+            calc={calc} 
+            selected={selected}
+            handleDeleteCalculation={handleDeleteCalculation} 
+            handleCreateCalculation={handleCreateCalculation}
+        />
         <PageSection>
             
             <Flex>

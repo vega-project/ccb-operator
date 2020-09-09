@@ -42,6 +42,22 @@ class Calculations {
         return Http.delete(url);
     }
 
+    create(logG, teff,) {
+
+        if (typeof logG === 'undefined') {
+            throw new Error('calculation logG is undefined');
+        }
+
+        if (typeof teff === 'undefined') {
+            throw new Error('calculation teff is undefined');
+        }
+
+        let data = {teff, logG};
+        
+        const url = `${this.host}/calculations/create`;
+        return Http.post(url, {}, `${JSON.stringify(data)}`);
+    }
+
 }
 
 export default new Calculations();

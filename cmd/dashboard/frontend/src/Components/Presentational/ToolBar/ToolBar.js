@@ -5,8 +5,9 @@ import Metalicity from '../ParameterizedOptions/Metalicity'
 import Veq from '../ParameterizedOptions/Veq'
 import Vmicro from '../ParameterizedOptions/Vmicro'
 import Inclination from '../ParameterizedOptions/Inclination'
+import { reverseSpec } from '../../../Utils/helper';
 
-const ToolbarItems = ({calc, handleDeleteCalculation}) => {
+const ToolbarItems = ({calc, selected, handleDeleteCalculation, handleCreateCalculation}) => {
     
     const items = (
       <React.Fragment>
@@ -24,7 +25,7 @@ const ToolbarItems = ({calc, handleDeleteCalculation}) => {
         </ToolbarItem>
 
         <ToolbarItem>
-          <Button variant="primary">{calc ? 'Re-calculate' : 'Calculate'}</Button>
+          <Button variant="primary" onClick={() => handleCreateCalculation(reverseSpec(selected))}>{calc ? 'Re-calculate' : 'Calculate'}</Button>
         </ToolbarItem>
         <ToolbarItem variant="separator" />
         <ToolbarItem>
