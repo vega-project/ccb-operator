@@ -5,7 +5,9 @@ import Metalicity from '../ParameterizedOptions/Metalicity'
 import Veq from '../ParameterizedOptions/Veq'
 import Vmicro from '../ParameterizedOptions/Vmicro'
 import Inclination from '../ParameterizedOptions/Inclination'
-const ToolbarItems = ({calc}) =>  {
+
+const ToolbarItems = ({calc, handleDeleteCalculation}) => {
+    
     const items = (
       <React.Fragment>
         <ToolbarItem>
@@ -26,7 +28,7 @@ const ToolbarItems = ({calc}) =>  {
         </ToolbarItem>
         <ToolbarItem variant="separator" />
         <ToolbarItem>
-          <Button isDisabled={!calc} variant="secondary">Delete</Button>
+          <Button isDisabled={!calc} variant="secondary" onClick={() => handleDeleteCalculation(calc.metadata.name)}>Delete</Button>
         </ToolbarItem>
       </React.Fragment>
     );

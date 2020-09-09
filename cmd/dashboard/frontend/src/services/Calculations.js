@@ -33,6 +33,15 @@ class Calculations {
         return Http.get(url);
     }
 
+    delete(name) {
+        if (typeof name === 'undefined') {
+            throw new Error('calculation name is undefined');
+        }
+
+        const url = `${this.host}/calculations/delete/${name}`;
+        return Http.delete(url);
+    }
+
 }
 
 export default new Calculations();

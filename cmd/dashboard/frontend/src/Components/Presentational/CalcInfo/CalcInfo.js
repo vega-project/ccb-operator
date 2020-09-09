@@ -16,12 +16,12 @@ import {
 import { getCalculation, reverseSpec } from '../../../Utils/helper';
 import ToolbarItems from '../ToolBar/ToolBar'
 
-const CalcInfo = ({ data, selected }) => {
+const CalcInfo = ({ data, selected, handleDeleteCalculation }) => {
     const [logG, teff] = reverseSpec(selected);
     const calc = getCalculation(data, logG, teff);
 
     return (<Fragment>
-        <ToolbarItems calc={calc} />
+        <ToolbarItems calc={calc} handleDeleteCalculation={handleDeleteCalculation}/>
         <PageSection>
             
             <Flex>
@@ -38,6 +38,7 @@ const CalcInfo = ({ data, selected }) => {
                                     <StackItem> Metalicity = 0 dex</StackItem>
                                     <StackItem> Vmicro = 0 km/s</StackItem>
                                     <StackItem> status  { calc ? calc.phase : 'N/A'}</StackItem>
+                                    { calc && <StackItem> Metadata {calc.metadata.name} </StackItem> }
                                 </Stack>
 
                             </TextContent>
