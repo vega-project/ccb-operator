@@ -11,7 +11,7 @@ const YAxisLabel = ({ label, index, stepper }) => (
             )
         }
         <td className="yaxis-label">
-            { index % 4 === 0 && <span className="label">{stepper[index].toFixed(1)}</span> }
+            { index % 4 === 0 && <span className="label">{stepper[index]}</span> }
         </td>
         {
             index === 0 && (
