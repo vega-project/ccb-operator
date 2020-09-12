@@ -11,7 +11,7 @@ import { groupArrayBySpec } from '../../../Utils/helper';
  
 const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
-    const [data, setData] = useState(undefined);
+    const [data, setData] = useState([]);
     const [selected, setSelected] = useState();
 
     const fetchCalculations = () => {
