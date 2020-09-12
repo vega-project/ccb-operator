@@ -3,8 +3,9 @@ import PropTypes from 'prop-types';
 import { Card } from '@patternfly/react-core/dist/esm/components/Card';
 import { CardBody } from '@patternfly/react-core/dist/esm/components/Card/CardBody';
 import { CardHeader } from '@patternfly/react-core/dist/esm/components/Card/CardHeader';
-import { Flex, FlexItem } from '@patternfly/react-core';
 import {
+    Flex, 
+    FlexItem,
     TextContent,
     Text,
     TextVariants,
