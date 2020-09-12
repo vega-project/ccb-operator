@@ -1,6 +1,6 @@
 import React from 'react';
 import { Toolbar, ToolbarItem, ToolbarContent } from '@patternfly/react-core';
-import { Button, ButtonVariant, InputGroup, TextInput } from '@patternfly/react-core';
+import { Button } from '@patternfly/react-core';
 import Metalicity from '../ParameterizedOptions/Metalicity'
 import Veq from '../ParameterizedOptions/Veq'
 import Vmicro from '../ParameterizedOptions/Vmicro'
