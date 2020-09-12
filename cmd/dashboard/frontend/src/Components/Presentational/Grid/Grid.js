@@ -1,9 +1,11 @@
-import React, { Fragment, useState } from 'react';
+import React, { Fragment } from 'react';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import XaxisLabel from './Xaxis';
 import YaxisLabel from './Yaxis';
+import { Tooltip } from '@patternfly/react-core';
 import { getCalculation, concatSpec } from '../../../Utils/helper'
+
 const Grid = ({ xaxis, yaxis, columns, rows, data, selected, setSelected }) => {
 
     const handleSelectCalc = (logG, teff) => {
@@ -39,8 +41,18 @@ const Grid = ({ xaxis, yaxis, columns, rows, data, selected, setSelected }) => {
                                     onClick={() => handleSelectCalc(column, row)}
                                     key={rowIndex}
                                     className={getComputedStyle(column, row)}
-                                >
-                                    <span className="dot">•</span>
+                                > 
+                                    <Tooltip
+                                        entryDelay={300}
+                                        content={
+                                            <Fragment>
+                                                <div>LogG: {column}dex</div>
+                                                <div>Teff: {row}K</div>
+                                            </Fragment>
+                                        }
+                                    >
+                                        <span className="dot">•</span>
+                                    </Tooltip>
                                 </td>
                             ))}
                         </tr>
