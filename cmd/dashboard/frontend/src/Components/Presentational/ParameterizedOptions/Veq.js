@@ -4,7 +4,7 @@ import {
     DropdownToggle,
     DropdownItem
 } from '@patternfly/react-core';
-import { ThIcon, CaretDownIcon } from '@patternfly/react-icons';
+import { CaretDownIcon } from '@patternfly/react-icons';
 import { Radio } from '@patternfly/react-core';
 
 class Veq extends React.Component {

@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useEffect } from 'react';
+import React, { Fragment } from 'react';
 import PropTypes from 'prop-types';
 import { Card } from '@patternfly/react-core/dist/esm/components/Card';
 import { CardBody } from '@patternfly/react-core/dist/esm/components/Card/CardBody';

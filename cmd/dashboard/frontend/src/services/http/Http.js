@@ -1,3 +1,4 @@
+/*eslint-disable no-useless-constructor */
 import Client from './Client';
 
 class Http extends Client {
