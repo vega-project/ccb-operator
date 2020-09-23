@@ -1,15 +1,17 @@
-name: result-collector-build-publish
+name: dashboard-frontend-build-publish
 
 on:
   push:
     branches:
       - master
+
     tags:
       - v*
+
   pull_request:
 
 env:
-  IMAGE_NAME: result-collector
+  IMAGE_NAME: dashboard-frontend
 
 jobs:
   test:
@@ -19,7 +21,8 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run tests
-        run: go build -o . ./cmd/result-collector && docker build -f images/result-collector/Dockerfile -t result-collector .
+        run: docker build -f images/dashboard/frontend/Dockerfile -t dashboard-frontend cmd/dashboard/frontend/
+
 
   push:
     needs: test
@@ -31,7 +34,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build image
-        run: go build -o . ./cmd/result-collector && docker build -f images/result-collector/Dockerfile -t result-collector .
+        run: docker build -f images/dashboard/frontend/Dockerfile -t dashboard-frontend cmd/dashboard/frontend/
 
       - name: Log into GitHub Container Registry
         run: echo "${{ secrets.REGISTRY_SECRET }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
