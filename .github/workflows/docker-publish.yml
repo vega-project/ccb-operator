@@ -27,13 +27,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run tests
-        run: |
-          if [ -f docker-compose.test.yml ]; then
-            docker-compose --file docker-compose.test.yml build
-            docker-compose --file docker-compose.test.yml run sut
-          else
-            docker build . --file Dockerfile
-          fi
+        run: go build -o . ./cmd/worker && docker build -f images/dispatcher/Dockerfile -t worker .
 
   # Push image to GitHub Packages.
   # See also https://docs.docker.com/docker-hub/builds/
@@ -48,7 +42,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build image
-        run: 	go build -o . ./cmd/worker && docker build -f images/dispatcher/Dockerfile -t worker .
+        run: go build -o . ./cmd/worker && docker build -f images/dispatcher/Dockerfile -t worker .
 
       - name: Log into GitHub Container Registry
       # TODO: Create a PAT with `read:packages` and `write:packages` scopes and save it as an Actions secret `CR_PAT`
