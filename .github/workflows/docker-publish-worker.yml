@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run tests
-        run: go build -o . ./cmd/worker && docker build -f images/dispatcher/Dockerfile -t worker .
+        run: go build -o . ./cmd/worker && docker build -f images/worker/Dockerfile -t worker .
 
   # Push image to GitHub Packages.
   # See also https://docs.docker.com/docker-hub/builds/
