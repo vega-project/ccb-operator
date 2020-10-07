@@ -228,16 +228,6 @@ func main() {
 
 	o.ctx = ctx
 
-	clusterConfig, err := util.LoadClusterConfig()
-	if err != nil {
-		logrus.WithError(err).Error("could not load cluster clusterConfig")
-	}
-
-	vegaClient, err := client.NewForConfig(clusterConfig)
-	if err != nil {
-		logrus.WithError(err).Error("could not create client")
-	}
-
 	if o.dryRun {
 		logrus.Info("Running on dry mode...")
 		fakecs := fake.NewSimpleClientset()
@@ -246,6 +236,15 @@ func main() {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
 	} else {
+		clusterConfig, err := util.LoadClusterConfig()
+		if err != nil {
+			logrus.WithError(err).Error("could not load cluster clusterConfig")
+		}
+
+		vegaClient, err := client.NewForConfig(clusterConfig)
+		if err != nil {
+			logrus.WithError(err).Error("could not create client")
+		}
 		o.client = vegaClient.VegaV1()
 	}
 
