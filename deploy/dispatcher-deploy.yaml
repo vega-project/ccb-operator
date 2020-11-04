@@ -20,8 +20,8 @@ spec:
       serviceAccountName: dispatcher
       containers:
       - name: dispatcher
-        image: docker-registry.default.svc:5000/vega/dispatcher
+        image: ghcr.io/vega-project/vega-project/ccb-operator/dispatcher:latest
         commands: /usr/bin/dispatcher
         args:
           - --namespace=vega
-          - --redis-url=10.128.0.201:6379 # temp: TODO: point to service
+          - --redis-url=redis.svc

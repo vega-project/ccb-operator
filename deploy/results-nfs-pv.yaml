@@ -9,5 +9,5 @@ spec:
   - ReadWriteMany
   nfs: 
     path: /nfs
-    server: 10.37.128.234
-  persistentVolumeReclaimPolicy: Recycle 
+    server: 10.0.3.29
+  persistentVolumeReclaimPolicy: Retain 
