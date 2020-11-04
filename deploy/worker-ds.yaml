@@ -14,7 +14,7 @@ spec:
       nodeSelector: 
         node-role.kubernetes.io/vega-worker: "true"
       containers:
-      - image: docker-registry.default.svc:5000/vega/worker
+      - image: ghcr.io/vega-project/vega-project/ccb-operator/worker:latest
         imagePullPolicy: Always
         name: vega-worker
         commands: 

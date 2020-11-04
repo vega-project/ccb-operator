@@ -22,7 +22,7 @@ spec:
       serviceAccountName: vega-worker
       containers:
       - name: result-collector
-        image: docker-registry.default.svc:5000/vega/result-collector
+        image: ghcr.io/vega-project/vega-project/ccb-operator/result-collector:latest
         commands: /usr/bin/result-collector
         args:
         - --calculations-dir=/nfs
