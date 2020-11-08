@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: janitor
+  labels:
+    app: janitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: janitor
+  template:
+    metadata:
+      labels:
+        app: janitor
+    spec:
+      updateStrategy:
+        type: RollingUpdate
+      serviceAccount: vega-worker
+      serviceAccountName: vega-worker
+      containers:
+      - name: janitor
+        image: ghcr.io/vega-project/vega-project/ccb-operator/janitor:latest
+        commands: /usr/bin/janitor
+        args:
+        - --retention=24h

@@ -1,0 +1,42 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+parameters:
+- name: NFS_SEVER_IP
+  required: true
+objects:
+- apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: nfs-pv
+  spec:
+    capacity:
+      storage: 500Gi
+    volumeMode: Filesystem
+    accessModes:
+      - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    storageClassName: nfs
+    nfs:
+      path: /var/tmp/nfs
+      server: ${NFS_SEVER_IP}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: results-nfs-claim
+  spec:
+    storageClassName: nfs
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: 500Gi
+- apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "false"
+    name: nfs
+  provisioner: kubernetes.io/cinder
+  reclaimPolicy: Retain
+  volumeBindingMode: Immediate
+  allowVolumeExpansion: true

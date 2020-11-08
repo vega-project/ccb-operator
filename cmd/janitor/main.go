@@ -30,7 +30,7 @@ func gatherOptions() options {
 	o := options{}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	fs.StringVar(&o.retentionString, "retention", "1d", "How long calculations will be allow to exist in the cluster")
+	fs.StringVar(&o.retentionString, "retention", "24h", "How long calculations will be allow to exist in the cluster")
 
 	fs.Parse(os.Args[1:])
 	return o

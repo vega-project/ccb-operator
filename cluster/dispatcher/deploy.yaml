@@ -14,8 +14,6 @@ spec:
       labels:
         app: dispatcher
     spec:
-      nodeSelector:
-        node-role.kubernetes.io/infra: "true"
       serviceAccount: dispatcher
       serviceAccountName: dispatcher
       containers:
@@ -24,4 +22,4 @@ spec:
         commands: /usr/bin/dispatcher
         args:
           - --namespace=vega
-          - --redis-url=redis.svc
+          - --redis-url=redis:6379
