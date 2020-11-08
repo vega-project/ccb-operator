@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/description: "Namespace where the vega project ccb operator will run all the calculations"
+    openshift.io/display-name: Vega
+  name: vega
