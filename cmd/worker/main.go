@@ -29,9 +29,9 @@ func gatherOptions() options {
 	o := options{}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	fs.StringVar(&o.nfsPath, "nfs-path", "/nfs", "Path of the mounted nfs storage.")
-	fs.StringVar(&o.atlasControlFiles, "atlas-control-files-path", "/nfs/atlas-control-files", "Path of the atlas12 control files.")
-	fs.StringVar(&o.atlasDataFiles, "atlas-data-files-path", "/nfs/atlas-data-files", "Path of the atlas12 data files.")
+	fs.StringVar(&o.nfsPath, "nfs-path", "/var/tmp/nfs", "Path of the mounted nfs storage.")
+	fs.StringVar(&o.atlasControlFiles, "atlas-control-files-path", "/var/tmp/nfs/atlas-control-files", "Path of the atlas12 control files.")
+	fs.StringVar(&o.atlasDataFiles, "atlas-data-files-path", "/var/tmp/nfs/atlas-data-files", "Path of the atlas12 data files.")
 
 	fs.StringVar(&o.kuruzModelTemplateFile, "kuruz-model-template-file", "", "Kuruz model template file.")
 	fs.StringVar(&o.synspecInputTemplateFile, "synspec-input-template-file", "", "Synspec input template file.")
