@@ -20,9 +20,6 @@ spec:
         commands: 
           - /usr/bin/worker
         args:
-          - --nfs-path=/var/tmp/nfs
-          - --atlas-control-files-path=/nfs/atlas-control-files
-          - --atlas-data-files-path=/nfs/atlas-data-files
           - --kuruz-model-template-file=kurucz_model_file_template.mod
           - --synspec-input-template-file=input_tlusty_fortfive_template
         volumeMounts:
