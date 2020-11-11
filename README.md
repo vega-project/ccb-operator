@@ -32,16 +32,16 @@ The operator consists of different components, each responsible for trivial but 
 #### Dispatcher
 The dispatcher is responsible for creating the calculations and assign them to workers. A calculation can be created either from adding a value in the database (Redis is currently used) or by creating a new one from the dashboard.
 
-### Worker
+#### Worker
 This component is a deamonset that will choose a specific labeled node to run, with the purpose of executing the given commands. Currently each execution will run the atlas12 and synspec commands.
 
-### Result-collector
+#### Result-collector
 This component is responsible for gathering the results of each completed calculation and organize them in an NFS storage.
 
-### Janitor
+#### Janitor
 Because of the big amount of calculations that can be created in the cluster, this component is responsible for deleting any of the calculations that passed the retention time.
 
-### Dashboard
+#### Dashboard
 The dashboard consists of two components, backend, and frontend, which acts as a web UI interface in order for users to manage the calculations.
 
 <!-- GETTING STARTED -->
