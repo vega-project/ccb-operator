@@ -63,7 +63,7 @@ cd ccb-operator
 ```
 3. Start the deployment using your nfs IP
 ```sh
-make deploy make deploy NFS_SERVER_IP=0.0.0.0
+make deploy NFS_SERVER_IP=0.0.0.0
 ```
 
 <!-- CONTRIBUTING -->
@@ -86,4 +86,5 @@ Distributed under the GNU General Public License v3.0. See `LICENSE` for more in
 ## Contact
 
 Nikolaos Moraitis - [@droslean](https://github.com/droslean/) - nmoraiti@redhat.com
+
 Vega Project Link: [https://github.com/vega-project/](https://github.com/vega-project/)
