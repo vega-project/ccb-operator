@@ -15,6 +15,7 @@ const Routes = () => (
         <Route path="/how-to-contribute">
             <ContributePage />
         </Route>
+        <Route component = { DashboardPage } />
     </Switch>
 )
    
