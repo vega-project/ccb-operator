@@ -2,8 +2,7 @@ import Http from './http/Http';
 
 class Calculations {
     constructor() {
-        // #TODO fix me, dynamic
-        this.host = 'http://localhost:8080';
+        this.host = process.env.REACT_APP_API_URL
     }
 
     /**
