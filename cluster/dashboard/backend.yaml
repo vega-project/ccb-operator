@@ -1,0 +1,82 @@
+kind: List
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: dashboard-backend
+
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: dashboard-backend-calculations
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: calculations-access
+  subjects:
+  - kind: ServiceAccount
+    name: dashboard-backend
+    namespace: vega
+
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: dashboard-backend-endpoints
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: endpoints-access
+  subjects:
+  - kind: ServiceAccount
+    name: dashboard-backend
+    namespace: vega
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    namespace: vega
+    name: backend
+    labels:
+      app: dashboard
+      component: backend
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
+  spec:
+    selector:
+      app: dashboard
+      component: backend
+    ports:
+    - name: main
+      port: 8080
+    type: ClusterIP
+
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: dashboard-backend
+    labels:
+      app: dashboard
+      component: backend
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: dashboard
+        component: backend
+    template:
+      metadata:
+        labels:
+          app: dashboard
+          component: backend
+      spec:
+        serviceAccount: dashboard-backend
+        serviceAccountName: dashboard-backend        
+        updateStrategy:
+          type: RollingUpdate
+        containers:
+        - name: dashboard-backend
+          image: ghcr.io/vega-project/vega-project/ccb-operator/dashboard-backend:latest
+          args:
+          - --dry-run=false
