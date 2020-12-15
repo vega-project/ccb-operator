@@ -4,11 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
@@ -24,6 +27,7 @@ import (
 type options struct {
 	namespace string
 	redisURL  string
+	redisPW   string
 }
 
 func gatherOptions() options {
@@ -32,6 +36,7 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.namespace, "namespace", "", "Namespace where the calculations exists")
 	fs.StringVar(&o.redisURL, "redis-url", "", "Redis database url host")
+	fs.StringVar(&o.redisPW, "redis-password-file", "", "File that holds the password of the Redis database")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -74,6 +79,17 @@ func main() {
 		logger.Fatalf("Failed to build coordination client: %s", err.Error())
 	}
 
+	redisPW, err := ioutil.ReadFile(o.redisPW)
+	if err != nil {
+		logger.Fatalf("Failed to retrieve database password from a file: %s", err.Error())
+	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     o.redisURL,
+		Password: strings.TrimSpace(string(redisPW)),
+		DB:       0,
+	})
+
 	stopCh := make(chan struct{}, 1)
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -108,7 +124,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL)
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, redisClient)
 
 				// Initialize the operator
 				op.Initialize()
