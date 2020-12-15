@@ -52,7 +52,7 @@ func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, ve
 		kubeclientset: kubeclientset,
 		vegaclientset: vegaclientset,
 		redisURL:      redisURL,
-		redisPW:       redisPW,
+		redisPW:       string(redisPW),
 	}
 }
 
