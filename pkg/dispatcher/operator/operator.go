@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -33,18 +34,24 @@ type Operator struct {
 	calculationsController *calculations.Controller
 	podsController         *workers.Controller
 	redisURL               string
+	redisPW                string
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisPW string) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
+	if dataPW, err := ioutil.ReadFile("redis.conf"); err != nil { //wasnt able to find the path to the file/not sure where it is
+		fmt.Errorf("Failed to retrieve database password from a file: %s", err.Error())
+		return &Operator{} //not really sure about that
+	}
 	return &Operator{
 		ctx:           ctx,
 		logger:        logger,
 		kubeclientset: kubeclientset,
 		vegaclientset: vegaclientset,
 		redisURL:      redisURL,
+		redisPW:	   dataPW
 	}
 }
 
@@ -58,10 +65,9 @@ func (op *Operator) Initialize() {
 	op.informer = informers.NewSharedInformerFactoryWithOptions(op.vegaclientset, 30*time.Second, informers.WithNamespace("vega"))
 	runtime.Must(calculationscheme.AddToScheme(scheme.Scheme))
 
-	// TODO: password: Get from Secret
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     op.redisURL,
-		Password: "vega12345", // temp for testing
+		Password: op.redisPW,
 		DB:       0,
 	})
 
