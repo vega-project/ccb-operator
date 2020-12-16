@@ -3,7 +3,6 @@ package operator
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -38,21 +37,16 @@ type Operator struct {
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisPW string) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	redisPW, err := ioutil.ReadFile("redis.conf")
-	if err != nil { //wasnt able to find the path to the file/not sure where it is
-		fmt.Errorf("Failed to retrieve database password from a file: %s", err.Error())
-		return &Operator{} //not really sure about that
-	}
 	return &Operator{
 		ctx:           ctx,
 		logger:        logger,
 		kubeclientset: kubeclientset,
 		vegaclientset: vegaclientset,
 		redisURL:      redisURL,
-		redisPW:       string(redisPW),
+		redisPW:       redisPW,
 	}
 }
 
