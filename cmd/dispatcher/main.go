@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
@@ -82,6 +83,12 @@ func main() {
 		logger.Fatalf("Failed to retrieve database password from a file: %s", err.Error())
 	}
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     o.redisURL,
+		Password: string(redisPW),
+		DB:       0,
+	})
+
 	stopCh := make(chan struct{}, 1)
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -116,7 +123,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, string(redisPW))
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, string(redisPW), redisClient)
 
 				// Initialize the operator
 				op.Initialize()
