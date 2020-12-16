@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,7 +36,7 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.namespace, "namespace", "", "Namespace where the calculations exists")
 	fs.StringVar(&o.redisURL, "redis-url", "", "Redis database url host")
-	fs.StringVar(&o.redisPW, "redis-pw", "", "Redis database password")
+	fs.StringVar(&o.redisPW, "redis-password-file", "", "File that holds the password of the Redis database")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -79,13 +80,13 @@ func main() {
 	}
 
 	redisPW, err := ioutil.ReadFile(o.redisPW)
-	if err != nil { //wasnt able to find the path to the file/not sure where it is
+	if err != nil {
 		logger.Fatalf("Failed to retrieve database password from a file: %s", err.Error())
 	}
 
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     o.redisURL,
-		Password: string(redisPW),
+		Password: strings.TrimSpace(string(redisPW)),
 		DB:       0,
 	})
 
@@ -123,7 +124,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, string(redisPW), redisClient)
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, redisClient)
 
 				// Initialize the operator
 				op.Initialize()
