@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
@@ -74,6 +75,11 @@ func main() {
 		logger.Fatalf("Failed to build coordination client: %s", err.Error())
 	}
 
+	redisPW, err := ioutil.ReadFile("redis.conf")
+	if err != nil { //wasnt able to find the path to the file/not sure where it is
+		logger.Fatalf("Failed to retrieve database password from a file: %s", err.Error())
+	}
+
 	stopCh := make(chan struct{}, 1)
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -108,7 +114,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL)
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, string(redisPW))
 
 				// Initialize the operator
 				op.Initialize()
