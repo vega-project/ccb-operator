@@ -25,6 +25,7 @@ import (
 type options struct {
 	namespace string
 	redisURL  string
+	redisPW   string
 }
 
 func gatherOptions() options {
@@ -33,6 +34,7 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.namespace, "namespace", "", "Namespace where the calculations exists")
 	fs.StringVar(&o.redisURL, "redis-url", "", "Redis database url host")
+	fs.StringVar(&o.redisPW, "redis-pw", "", "Redis database password")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -75,7 +77,7 @@ func main() {
 		logger.Fatalf("Failed to build coordination client: %s", err.Error())
 	}
 
-	redisPW, err := ioutil.ReadFile("redis.conf")
+	redisPW, err := ioutil.ReadFile(o.redisPW)
 	if err != nil { //wasnt able to find the path to the file/not sure where it is
 		logger.Fatalf("Failed to retrieve database password from a file: %s", err.Error())
 	}
