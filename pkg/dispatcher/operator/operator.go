@@ -33,12 +33,11 @@ type Operator struct {
 	calculationsController *calculations.Controller
 	podsController         *workers.Controller
 	redisURL               string
-	redisPW                string
 	redisClient            *redis.Client
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisPW string, redisClient *redis.Client) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisClient *redis.Client) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
@@ -47,7 +46,6 @@ func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, ve
 		kubeclientset: kubeclientset,
 		vegaclientset: vegaclientset,
 		redisURL:      redisURL,
-		redisPW:       redisPW,
 		redisClient:   redisClient,
 	}
 }
