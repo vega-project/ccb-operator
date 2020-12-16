@@ -34,10 +34,11 @@ type Operator struct {
 	podsController         *workers.Controller
 	redisURL               string
 	redisPW                string
+	redisClient            *redis.Client
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisPW string) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisPW string, redisClient *redis.Client) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
@@ -47,6 +48,7 @@ func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, ve
 		vegaclientset: vegaclientset,
 		redisURL:      redisURL,
 		redisPW:       redisPW,
+		redisClient:   redisClient,
 	}
 }
 
@@ -60,14 +62,8 @@ func (op *Operator) Initialize() {
 	op.informer = informers.NewSharedInformerFactoryWithOptions(op.vegaclientset, 30*time.Second, informers.WithNamespace("vega"))
 	runtime.Must(calculationscheme.AddToScheme(scheme.Scheme))
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     op.redisURL,
-		Password: op.redisPW,
-		DB:       0,
-	})
-
-	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Vega().V1().Calculations(), redisClient)
-	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Vega().V1().Calculations().Lister(), redisClient)
+	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Vega().V1().Calculations(), op.redisClient)
+	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Vega().V1().Calculations().Lister(), op.redisClient)
 }
 
 // Run starts the calculation and pod controllers.
