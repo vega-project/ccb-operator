@@ -8,6 +8,7 @@ const path = require('path');
 
 module.exports = withMDX(withCSS({
     distDir: 'build',
+    target: "serverless",
     pageExtensions: [ 'js', 'jsx', 'md', 'mdx' ],
     webpack: (config, options) => {    const { dir, isServer } = options;
         config.externals = [];
