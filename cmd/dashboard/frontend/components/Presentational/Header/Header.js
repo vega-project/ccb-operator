@@ -11,8 +11,7 @@ import {
     PageHeaderToolsGroup,
     PageHeaderToolsItem
   } from '@patternfly/react-core';import Navigation from './Navigation'
-import logo from '../../../vega-logo.png';
-import imgAvatar from '@patternfly/react-core/src/components/Avatar/examples/avatarImg.svg';
+import logo from '../../../public/vega-logo.png';
 
 const userDropdownItems = [
     <DropdownGroup key="group 2">
@@ -37,7 +36,6 @@ const HeaderTools = () => {
                     />  
                 </PageHeaderToolsItem>
             </PageHeaderToolsGroup>
-            <Avatar src={imgAvatar} alt="Avatar image" />
         </PageHeaderTools>
   );
 }

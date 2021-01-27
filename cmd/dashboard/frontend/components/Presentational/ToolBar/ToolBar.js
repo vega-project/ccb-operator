@@ -5,7 +5,7 @@ import Metalicity from '../ParameterizedOptions/Metalicity'
 import Veq from '../ParameterizedOptions/Veq'
 import Vmicro from '../ParameterizedOptions/Vmicro'
 import Inclination from '../ParameterizedOptions/Inclination'
-import { reverseSpec } from '../../../Utils/helper';
+import { reverseSpec } from '../../../utils/helper';
 
 const ToolbarItems = ({calc, selected, handleDeleteCalculation, handleCreateCalculation}) => {
     

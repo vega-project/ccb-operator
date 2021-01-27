@@ -5,9 +5,9 @@ import {
     surfaceGravityAxes,
     effectiveTemperatureAxes,
     TEFF_LOG_GRID
-} from '../../../Utils/constants'
+} from '../../../utils/constants'
 import CalcInfo from '../../Presentational/CalcInfo/CalcInfo';
-import { groupArrayBySpec } from '../../../Utils/helper';
+import { groupArrayBySpec } from '../../../utils/helper';
  
 const DashboardPage = () => {
     const [loading, setLoading] = useState(true);

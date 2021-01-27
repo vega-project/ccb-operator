@@ -3,4 +3,4 @@ sftp-config.json
 # frontend build files
 cmd/dashboard/frontend/node_modules/
 cmd/dashboard/frontend/dist/
-
+cmd/dashboard/frontend/build/
