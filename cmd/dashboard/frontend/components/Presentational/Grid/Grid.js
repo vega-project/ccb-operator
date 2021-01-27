@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import XaxisLabel from './Xaxis';
 import YaxisLabel from './Yaxis';
 import { Tooltip } from '@patternfly/react-core';
-import { getCalculation, concatSpec } from '../../../Utils/helper'
+import { getCalculation, concatSpec } from '../../../utils/helper'
 
 const Grid = ({ xaxis, yaxis, columns, rows, data, selected, setSelected }) => {
 

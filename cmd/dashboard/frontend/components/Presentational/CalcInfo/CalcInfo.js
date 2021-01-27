@@ -13,7 +13,7 @@ import {
     Stack, 
     StackItem,
 } from '@patternfly/react-core';
-import { getCalculation, reverseSpec } from '../../../Utils/helper';
+import { getCalculation, reverseSpec } from '../../../utils/helper';
 import ToolbarItems from '../ToolBar/ToolBar'
 
 const CalcInfo = ({ data, selected, handleDeleteCalculation, handleCreateCalculation }) => {
