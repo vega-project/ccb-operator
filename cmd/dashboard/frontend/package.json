@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@patternfly/react-core": "^4.47.0",
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "classnames": "^2.2.6",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
