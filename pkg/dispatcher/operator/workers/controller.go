@@ -38,30 +38,32 @@ const (
 
 // Controller ...
 type Controller struct {
-	ctx               context.Context
-	podLister         listers.PodLister
-	calculationLister calclisters.CalculationLister
-	kubeClient        kubernetes.Interface
-	calculationClient calculationsclient.Interface
-	logger            *logrus.Entry
-	podsSynced        cache.InformerSynced
-	taskQueue         *util.TaskQueue
-	redisClient       *redis.Client
+	ctx                context.Context
+	podLister          listers.PodLister
+	calculationLister  calclisters.CalculationLister
+	kubeClient         kubernetes.Interface
+	calculationClient  calculationsclient.Interface
+	logger             *logrus.Entry
+	podsSynced         cache.InformerSynced
+	taskQueue          *util.TaskQueue
+	redisClient        *redis.Client
+	redisSortedSetName string
 }
 
 // NewController ...
-func NewController(ctx context.Context, kubeClient kubernetes.Interface, podInformer informers.PodInformer, calculationClient calculationsclient.Interface, calculationLister calclisters.CalculationLister, redisClient *redis.Client) *Controller {
+func NewController(ctx context.Context, kubeClient kubernetes.Interface, podInformer informers.PodInformer, calculationClient calculationsclient.Interface, calculationLister calclisters.CalculationLister, redisClient *redis.Client, redisSortedSetName string) *Controller {
 	logger := logrus.WithField("controller", "pod-workers")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
-		ctx:               ctx,
-		podLister:         podInformer.Lister(),
-		calculationClient: calculationClient,
-		calculationLister: calculationLister,
-		podsSynced:        podInformer.Informer().HasSynced,
-		kubeClient:        kubeClient,
-		logger:            logger,
-		redisClient:       redisClient,
+		ctx:                ctx,
+		podLister:          podInformer.Lister(),
+		calculationClient:  calculationClient,
+		calculationLister:  calculationLister,
+		podsSynced:         podInformer.Informer().HasSynced,
+		kubeClient:         kubeClient,
+		logger:             logger,
+		redisClient:        redisClient,
+		redisSortedSetName: redisSortedSetName,
 	}
 
 	controller.taskQueue = util.NewTaskQueue(
@@ -172,8 +174,7 @@ func hasAssignedCalculation(calculations []*calculationsv1.Calculation) bool {
 }
 
 func (c *Controller) assignCalulationDB() (string, string, string) {
-	// TODO: --flag vz
-	vzList, err := c.redisClient.ZRange("vz", 0, -1).Result()
+	vzList, err := c.redisClient.ZRange(c.redisSortedSetName, 0, -1).Result()
 	if err != nil {
 		c.logger.WithError(err).Error("redis error")
 	}

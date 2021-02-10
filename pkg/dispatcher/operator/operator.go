@@ -34,19 +34,21 @@ type Operator struct {
 	podsController         *workers.Controller
 	redisURL               string
 	redisClient            *redis.Client
+	redisSortedSetName     string
 }
 
 // NewMainOperator return a new Operator
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisClient *redis.Client) *Operator {
+func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, redisURL string, redisClient *redis.Client, redisSortedSetName string) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
-		ctx:           ctx,
-		logger:        logger,
-		kubeclientset: kubeclientset,
-		vegaclientset: vegaclientset,
-		redisURL:      redisURL,
-		redisClient:   redisClient,
+		ctx:                ctx,
+		logger:             logger,
+		kubeclientset:      kubeclientset,
+		vegaclientset:      vegaclientset,
+		redisURL:           redisURL,
+		redisClient:        redisClient,
+		redisSortedSetName: redisSortedSetName,
 	}
 }
 
@@ -61,7 +63,7 @@ func (op *Operator) Initialize() {
 	runtime.Must(calculationscheme.AddToScheme(scheme.Scheme))
 
 	op.calculationsController = calculations.NewController(op.vegaclientset, op.informer.Vega().V1().Calculations(), op.redisClient)
-	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Vega().V1().Calculations().Lister(), op.redisClient)
+	op.podsController = workers.NewController(op.ctx, op.kubeclientset, op.kubeInformer.Core().V1().Pods(), op.vegaclientset, op.informer.Vega().V1().Calculations().Lister(), op.redisClient, op.redisSortedSetName)
 }
 
 // Run starts the calculation and pod controllers.
