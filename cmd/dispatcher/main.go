@@ -25,9 +25,10 @@ import (
 )
 
 type options struct {
-	namespace         string
-	redisURL          string
-	redisPasswordFile string
+	namespace          string
+	redisURL           string
+	redisPasswordFile  string
+	redisSortedSetName string
 }
 
 func gatherOptions() options {
@@ -37,6 +38,7 @@ func gatherOptions() options {
 	fs.StringVar(&o.namespace, "namespace", "", "Namespace where the calculations exists")
 	fs.StringVar(&o.redisURL, "redis-url", "", "Redis database url host")
 	fs.StringVar(&o.redisPasswordFile, "redis-password-file", "", "Path of the Redis database password file")
+	fs.StringVar(&o.redisSortedSetName, "redis-sorted-set-name", "vz", "Name of the Redis sorted set")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -124,7 +126,7 @@ func main() {
 				ctx, cancel = context.WithCancel(ctx)
 				defer cancel()
 
-				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, redisClient)
+				op := operator.NewMainOperator(ctx, kubeclient, vegaClient, o.redisURL, redisClient, o.redisSortedSetName)
 
 				// Initialize the operator
 				op.Initialize()

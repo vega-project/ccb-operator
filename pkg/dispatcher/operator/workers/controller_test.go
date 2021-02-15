@@ -34,12 +34,14 @@ func TestAssignCalulationDB(t *testing.T) {
 	}
 
 	testCases := []struct {
-		id           string
-		data         []testData
-		expectToPick picked
+		id                 string
+		data               []testData
+		expectToPick       picked
+		redisSortedSetName string
 	}{
 		{
-			id: "single value",
+			id:                 "single value",
+			redisSortedSetName: "vz",
 			data: []testData{
 				{
 					name:   "vz.star:teff_10000",
@@ -49,7 +51,8 @@ func TestAssignCalulationDB(t *testing.T) {
 			expectToPick: picked{name: "vz.star:teff_10000", teff: "10000.0", logG: "4"},
 		},
 		{
-			id: "multiple values",
+			id:                 "multiple values",
+			redisSortedSetName: "vz",
 			data: []testData{
 				{
 					name:   "vz.star:teff_10000",
@@ -72,7 +75,8 @@ func TestAssignCalulationDB(t *testing.T) {
 		},
 
 		{
-			id: "multiple values, existing processing status",
+			id:                 "multiple values, existing processing status",
+			redisSortedSetName: "vz",
 			data: []testData{
 				{
 					name:   "vz.star:teff_10000",
@@ -94,7 +98,8 @@ func TestAssignCalulationDB(t *testing.T) {
 			expectToPick: picked{name: "vz.star:teff_11000", teff: "11000.0", logG: "4"},
 		},
 		{
-			id: "multiple values, existing processing statuses",
+			id:                 "multiple values, existing processing statuses",
+			redisSortedSetName: "xy",
 			data: []testData{
 				{
 					name:   "vz.star:teff_10000",
@@ -117,7 +122,8 @@ func TestAssignCalulationDB(t *testing.T) {
 		},
 
 		{
-			id: "multiple values, scrambled existing processing statuses",
+			id:                 "multiple values, scrambled existing processing statuses",
+			redisSortedSetName: "vz-test",
 			data: []testData{
 				{
 					name:   "vz.star:teff_10000",
@@ -143,8 +149,9 @@ func TestAssignCalulationDB(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.id, func(t *testing.T) {
 			controller := &Controller{
-				logger:      logrus.WithField("test-name", tc.id),
-				redisClient: redisClient,
+				logger:             logrus.WithField("test-name", tc.id),
+				redisClient:        redisClient,
+				redisSortedSetName: tc.redisSortedSetName,
 			}
 
 			var counter float64
@@ -152,7 +159,7 @@ func TestAssignCalulationDB(t *testing.T) {
 				if boolCmd := redisClient.HMSet(testData.name, testData.values); boolCmd.Err() != nil {
 					t.Fatalf("couldn't set test data: %v", boolCmd.Err())
 				}
-				if stringCmd := redisClient.ZAdd("vz", redis.Z{Score: counter, Member: testData.name}); stringCmd.Err() != nil {
+				if stringCmd := redisClient.ZAdd(tc.redisSortedSetName, redis.Z{Score: counter, Member: testData.name}); stringCmd.Err() != nil {
 					t.Fatalf("couldn't set test data: %v", stringCmd.Err())
 				}
 				counter = counter + 1
