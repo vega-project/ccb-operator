@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"k8s.io/apimachinery/pkg/fields"
 	informers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	listers "k8s.io/client-go/listers/core/v1"
@@ -91,14 +92,51 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface, podInfo
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
 			controller.logger.WithField("pod-name", pod.Name).Warn("Deleting...")
-
-			// TODO: When pod is deleted, we want to unassigned the uncompleted calculation that
-			// its assigned to it.
 			controller.taskQueue.Enqueue(obj)
 		},
 	})
 
 	return controller
+}
+
+func (c *Controller) deleteAssignedCalculation(assigned string) error {
+	calculationList, err := c.calculationClient.VegaV1().Calculations().List(context.TODO(), metav1.ListOptions{LabelSelector: fields.Set{"assign": assigned}.AsSelector().String()})
+	if err != nil {
+		return fmt.Errorf("Couldn't get a list of calculations: %v", err)
+	}
+	getAssignedCalculations := func(calculations []calculationsv1.Calculation) []calculationsv1.Calculation {
+		var ret []calculationsv1.Calculation
+		for _, c := range calculations {
+			if (c.Phase == calculationsv1.CreatedPhase || c.Phase == calculationsv1.ProcessingPhase) && assigned == c.Assign {
+				ret = append(ret, c)
+			}
+		}
+		return ret
+	}
+	assignedCalculations := getAssignedCalculations(calculationList.Items)
+	if len(assignedCalculations) == 0 {
+		c.logger.WithField("pod-name", assigned).Warn("There were no calculations assigned to a certain pod to delete...")
+		return nil
+	}
+	if len(assignedCalculations) > 1 {
+		return fmt.Errorf("More than one calculations found: %#v", assignedCalculations)
+	}
+
+	toUpdate := make(map[string]interface{})
+	toUpdate["status"] = ""
+
+	for _, calc := range assignedCalculations {
+		if (calc.Phase == calculationsv1.ProcessingPhase || calc.Phase == calculationsv1.CreatedPhase) && calc.Assign == assigned {
+			if err := c.calculationClient.VegaV1().Calculations().Delete(context.TODO(), calc.Name, metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("Couldn't delete the calculation: %v", err)
+			}
+			c.logger.WithFields(logrus.Fields{"dbKey": calc.DBKey, "toUpdate": toUpdate}).Info("Updating database...")
+			if cmd := c.redisClient.HMSet(calc.DBKey, toUpdate); cmd.Err() != nil {
+				return fmt.Errorf("Couldn't update status in database: %v", cmd.Err())
+			}
+		}
+	}
+	return nil
 }
 
 // Run will set up the event handlers for types we are interested in, as well
