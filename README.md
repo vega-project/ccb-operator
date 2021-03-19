@@ -51,8 +51,7 @@ To get a local copy up and running follow these simple example steps.
 * Network file server (NFS) 
 
 ### Installation
-1. Get a free API Key at [https://example.com](https://example.com)
-2. Clone the repo and go to the folder
+Clone the repo and go to the folder
 ```sh
 git clone https://github.com/vega-project/ccb-operator.git
 cd ccb-operator
