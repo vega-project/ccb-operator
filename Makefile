@@ -28,6 +28,10 @@ janitor:
 	oc create -f ./cluster/janitor --dry-run -o yaml | oc apply -f - 
 .PHONY: janitor
 
+apiserver:
+	oc create -f ./cluster/apiserver --dry-run -o yaml | oc apply -f - 
+.PHONY: apiserver
+
 storage:
 ifdef NFS_SERVER_IP
 	oc process -f ./cluster/storage/nfs-storage-template.yaml NFS_SEVER_IP=${NFS_SERVER_IP} | oc apply -f -
@@ -36,4 +40,4 @@ else
 endif	
 .PHONY: storage
 
-deploy: storage dispatcher worker result-collector janitor
+deploy: storage dispatcher worker result-collector janitor apiserver

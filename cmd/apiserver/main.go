@@ -238,6 +238,7 @@ func main() {
 		logger:       logrus.WithField("component", "apiserver"),
 		ctx:          ctx,
 		clientGetter: clientGetter,
+		dryRun:       o.dryRun,
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -246,6 +247,7 @@ func main() {
 	router.HandleFunc("/calculation", s.getCalculation)
 	router.HandleFunc("/calculations/create", s.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
+	router.Use(s.middleware)
 
 	logrus.Infof("Listening on %d port", o.port)
 	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))

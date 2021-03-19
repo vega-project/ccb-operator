@@ -19,6 +19,8 @@ type server struct {
 	logger       *logrus.Entry
 	ctx          context.Context
 	clientGetter func(token string) v1.VegaV1Interface
+
+	dryRun bool
 }
 
 func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +139,17 @@ func (s *server) getCalculation(w http.ResponseWriter, r *http.Request) {
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
+}
+
+func (s *server) middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		if len(r.Header.Get("X-Session-Token")) == 0 && !s.dryRun {
+			json.NewEncoder(w).Encode(response("Unauthorized", http.StatusUnauthorized))
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
 }
 
 type Response struct {
