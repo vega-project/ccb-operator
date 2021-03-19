@@ -51,12 +51,12 @@ To get a local copy up and running follow these simple example steps.
 * Network file server (NFS) 
 
 ### Installation
-Clone the repo and go to the folder
+1. Clone the repo and go to the folder
 ```sh
 git clone https://github.com/vega-project/ccb-operator.git
 cd ccb-operator
 ```
-3. Start the deployment using your nfs IP
+2. Start the deployment using your nfs IP
 ```sh
 make deploy NFS_SERVER_IP=0.0.0.0
 ```
