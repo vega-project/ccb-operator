@@ -4,49 +4,44 @@ items:
 - apiVersion: v1
   kind: ServiceAccount
   metadata:
-    name: dashboard-backend
+    name: apiserver
 
 - kind: ClusterRoleBinding
   apiVersion: rbac.authorization.k8s.io/v1
   metadata:
-    name: dashboard-backend-calculations
+    name: apiserver-calculations
   roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
     name: calculations-access
   subjects:
   - kind: ServiceAccount
-    name: dashboard-backend
+    name: apiserver
     namespace: vega
 
 - kind: ClusterRoleBinding
   apiVersion: rbac.authorization.k8s.io/v1
   metadata:
-    name: dashboard-backend-endpoints
+    name: apiserver-endpoints
   roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
     name: endpoints-access
   subjects:
   - kind: ServiceAccount
-    name: dashboard-backend
+    name: apiserver
     namespace: vega
 
 - apiVersion: v1
   kind: Service
   metadata:
     namespace: vega
-    name: backend
+    name: apiserver
     labels:
-      app: dashboard
-      component: backend
-    annotations:
-      prometheus.io/scrape: "true"
-      prometheus.io/port: "8080"
+      app: apiserver
   spec:
     selector:
-      app: dashboard
-      component: backend
+      app: apiserver
     ports:
     - name: main
       port: 8080
@@ -55,28 +50,25 @@ items:
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
-    name: dashboard-backend
+    name: apiserver
     labels:
-      app: dashboard
-      component: backend
+      app: apiserver
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: dashboard
-        component: backend
+        app: apiserver
     template:
       metadata:
         labels:
-          app: dashboard
-          component: backend
+          app: apiserver
       spec:
-        serviceAccount: dashboard-backend
-        serviceAccountName: dashboard-backend        
+        serviceAccount: apiserver
+        serviceAccountName: apiserver        
         updateStrategy:
           type: RollingUpdate
         containers:
-        - name: dashboard-backend
-          image: ghcr.io/vega-project/vega-project/ccb-operator/dashboard-backend:latest
+        - name: apiserver
+          image: ghcr.io/vega-project/vega-project/ccb-operator/apiserver:latest
           args:
           - --dry-run=false
