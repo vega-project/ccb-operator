@@ -3,7 +3,8 @@ build:
 	docker build -f images/dispatcher/Dockerfile -t dispatcher .
 	docker build -f images/worker/Dockerfile -t worker .
 	docker build -f images/janitor/Dockerfile -t janitor .
-	docker build -f images/result-collector/Dockerfile -t result-collector .		
+	docker build -f images/result-collector/Dockerfile -t result-collector .
+	docker build -f images/apiserver/Dockerfile -t apiserver .
 .PHONY: all build
 
 
