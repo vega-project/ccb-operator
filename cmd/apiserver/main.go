@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -24,8 +22,6 @@ import (
 )
 
 type options struct {
-	ctx context.Context
-
 	dryCalculationsTotal int
 	dryRunFailureRate    int
 	dryWorkers           int
@@ -33,13 +29,6 @@ type options struct {
 
 	dryRun bool
 	port   int
-
-	client v1.VegaV1Interface
-}
-
-type Response struct {
-	Message    string `json:"message,omitempty"`
-	StatusCode int    `json:"status_code,omitempty"`
 }
 
 func gatherOptions() options {
@@ -56,208 +45,6 @@ func gatherOptions() options {
 
 	fs.Parse(os.Args[1:])
 	return o
-}
-
-type newCalc struct {
-	Teff string `json:"teff"`
-	LogG string `json:"logG"`
-}
-
-func (o *options) createCalculation(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	decoder := json.NewDecoder(r.Body)
-
-	var calc newCalc
-	err := decoder.Decode(&calc)
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't decode json params: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-		return
-	}
-
-	t, err := strconv.ParseFloat(calc.Teff, 64)
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("teff is not a valid float64 number: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-		return
-	}
-
-	l, err := strconv.ParseFloat(calc.LogG, 64)
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("logG is not a valid float64 number: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-		return
-	}
-
-	calculation := util.NewCalculation(t, l)
-	calculation.Labels = map[string]string{"created_by_human": "true"}
-
-	c, err := o.client.Calculations().Create(o.ctx, calculation, metav1.CreateOptions{})
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't create calculation: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-	} else {
-		json.NewEncoder(w).Encode(c)
-	}
-
-}
-
-func (o *options) deleteCalculation(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "DELETE" {
-		return
-	}
-	calcID := mux.Vars(r)["id"]
-
-	err := o.client.Calculations().Delete(o.ctx, calcID, metav1.DeleteOptions{})
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't delete calculation: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-	} else {
-		json.NewEncoder(w).Encode(Response{
-			Message:    fmt.Sprintf("calculation %q has been deleted", calcID),
-			StatusCode: 200,
-		})
-	}
-}
-
-func (o *options) getCalculations(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-
-	calcList, err := o.client.Calculations().List(o.ctx, metav1.ListOptions{})
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't get calculations list: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-	} else {
-		json.NewEncoder(w).Encode(calcList)
-	}
-}
-
-func (o *options) getCalculationByName(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-
-	calcID := mux.Vars(r)["id"]
-
-	calc, err := o.client.Calculations().Get(o.ctx, calcID, metav1.GetOptions{})
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcID, err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-	} else {
-		json.NewEncoder(w).Encode(calc)
-	}
-}
-
-func (o *options) getCalculation(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	r.ParseForm()
-
-	teff := r.Form.Get("teff")
-	logG := r.Form.Get("logG")
-
-	t, err := strconv.ParseFloat(teff, 64)
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("teff is not a valid float64 number: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-		return
-	}
-
-	l, err := strconv.ParseFloat(logG, 64)
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("logG is not a valid float64 number: %v", err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-		return
-	}
-
-	calcName := util.GetCalculationName(t, l)
-	calc, err := o.client.Calculations().Get(o.ctx, calcName, metav1.GetOptions{})
-	if err != nil {
-		e := Response{
-			Message:    fmt.Sprintf("couldn't get calculation %s: %v", calcName, err),
-			StatusCode: 500,
-		}
-		json.NewEncoder(w).Encode(e)
-	} else {
-		json.NewEncoder(w).Encode(calc)
-	}
-}
-
-func main() {
-	o := gatherOptions()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	o.ctx = ctx
-
-	if o.dryRun {
-		logrus.Info("Running on dry mode...")
-		fakecs := fake.NewSimpleClientset()
-		o.client = fakecs.VegaV1()
-		if err := o.startDryRun(o.ctx, o.client); err != nil {
-			logrus.WithError(err).Fatal("error while running in dry mode")
-		}
-	} else {
-		clusterConfig, err := util.LoadClusterConfig()
-		if err != nil {
-			logrus.WithError(err).Error("could not load cluster clusterConfig")
-		}
-
-		vegaClient, err := client.NewForConfig(clusterConfig)
-		if err != nil {
-			logrus.WithError(err).Error("could not create client")
-		}
-		o.client = vegaClient.VegaV1()
-	}
-
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/calculations", o.getCalculations)
-	router.HandleFunc("/calculation/{id}", o.getCalculationByName)
-	router.HandleFunc("/calculation", o.getCalculation)
-	router.HandleFunc("/calculations/create", o.createCalculation)
-	router.HandleFunc("/calculations/delete/{id}", o.deleteCalculation)
-
-	logrus.Infof("Listening on %d port", o.port)
-	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
-
 }
 
 func (o *options) startDryRun(ctx context.Context, fakeClient v1.VegaV1Interface) error {
@@ -405,4 +192,62 @@ func (o *options) simulateRun(ctx context.Context, fakeClient v1.VegaV1Interface
 			fakeClient.Calculations().Update(ctx, newCalc, metav1.UpdateOptions{})
 		}
 	}
+}
+
+func main() {
+	o := gatherOptions()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var clientGetter func(token string) v1.VegaV1Interface
+
+	clusterConfig, err := util.LoadClusterConfig()
+	if err != nil {
+		logrus.WithError(err).Error("could not load cluster clusterConfig")
+	}
+
+	if o.dryRun {
+		logrus.Info("Running on dry mode...")
+		fakecs := fake.NewSimpleClientset()
+		if err := o.startDryRun(ctx, fakecs.VegaV1()); err != nil {
+			logrus.WithError(err).Fatal("error while running in dry mode")
+		}
+
+		vegaClient, err := client.NewForConfig(clusterConfig)
+		if err != nil {
+			logrus.WithError(err).Error("could not create client")
+		}
+
+		clientGetter = func(token string) v1.VegaV1Interface {
+			return vegaClient.VegaV1()
+		}
+
+	} else {
+		clientGetter = func(token string) v1.VegaV1Interface {
+			clusterConfig.BearerToken = token
+			vegaClient, err := client.NewForConfig(clusterConfig)
+			if err != nil {
+				logrus.WithError(err).Error("could not create client")
+			}
+			return vegaClient.VegaV1()
+		}
+	}
+
+	s := server{
+		logger:       logrus.WithField("component", "apiserver"),
+		ctx:          ctx,
+		clientGetter: clientGetter,
+	}
+
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/calculations", s.getCalculations)
+	router.HandleFunc("/calculation/{id}", s.getCalculationByName)
+	router.HandleFunc("/calculation", s.getCalculation)
+	router.HandleFunc("/calculations/create", s.createCalculation)
+	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
+
+	logrus.Infof("Listening on %d port", o.port)
+	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
+
 }
