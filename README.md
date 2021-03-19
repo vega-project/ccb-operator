@@ -27,7 +27,6 @@ The operator consists of different components, each responsible for trivial but 
 * Worker
 * Result-collector
 * Janitor
-* Dashboard (backend and frontend)
 
 #### Dispatcher
 The dispatcher is responsible for creating the calculations and assign them to workers. A calculation can be created either from adding a value in the database (Redis is currently used) or by creating a new one from the dashboard.
@@ -40,9 +39,6 @@ This component is responsible for gathering the results of each completed calcul
 
 #### Janitor
 Because of the big amount of calculations that can be created in the cluster, this component is responsible for deleting any of the calculations that passed the retention time.
-
-#### Dashboard
-The dashboard consists of two components, backend, and frontend, which acts as a web UI interface in order for users to manage the calculations.
 
 <!-- GETTING STARTED -->
 ## Getting Started
