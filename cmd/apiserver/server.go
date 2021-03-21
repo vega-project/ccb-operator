@@ -16,11 +16,9 @@ import (
 )
 
 type server struct {
-	logger       *logrus.Entry
-	ctx          context.Context
-	clientGetter func(token string) v1.VegaV1Interface
-
-	dryRun bool
+	logger *logrus.Entry
+	ctx    context.Context
+	client v1.VegaV1Interface
 }
 
 func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +54,7 @@ func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
 	calculation := util.NewCalculation(t, l)
 	calculation.Labels = map[string]string{"created_by_human": "true"}
 
-	c, err := s.clientGetter(r.Header.Get("X-Session-Token")).Calculations().Create(s.ctx, calculation, metav1.CreateOptions{})
+	c, err := s.client.Calculations().Create(s.ctx, calculation, metav1.CreateOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't create calculation: %v", err), determineStatusCodeByError(err)))
 	} else {
@@ -71,7 +69,7 @@ func (s *server) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	calcID := mux.Vars(r)["id"]
-	err := s.clientGetter(r.Header.Get("X-Session-Token")).Calculations().Delete(s.ctx, calcID, metav1.DeleteOptions{})
+	err := s.client.Calculations().Delete(s.ctx, calcID, metav1.DeleteOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't delete calculation: %v", err), determineStatusCodeByError(err)))
 	} else {
@@ -87,7 +85,7 @@ func (s *server) getCalculations(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.WithFields(logrus.Fields{"host": r.Host, "url": r.URL, "method": r.Method, "user-agent": r.UserAgent()}).Info("getting calculations")
 
-	calcList, err := s.clientGetter(r.Header.Get("X-Session-Token")).Calculations().List(s.ctx, metav1.ListOptions{})
+	calcList, err := s.client.Calculations().List(s.ctx, metav1.ListOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculations list: %v", err), determineStatusCodeByError(err)))
 	} else {
@@ -102,7 +100,7 @@ func (s *server) getCalculationByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	calcID := mux.Vars(r)["id"]
-	calc, err := s.clientGetter(r.Header.Get("X-Session-Token")).Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
+	calc, err := s.client.Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculation %s: %v", calcID, err), determineStatusCodeByError(err)))
 	} else {
@@ -133,23 +131,12 @@ func (s *server) getCalculation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	calcName := util.GetCalculationName(t, l)
-	calc, err := s.clientGetter(r.Header.Get("X-Session-Token")).Calculations().Get(s.ctx, calcName, metav1.GetOptions{})
+	calc, err := s.client.Calculations().Get(s.ctx, calcName, metav1.GetOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculation %s: %v", calcName, err), determineStatusCodeByError(err)))
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
-}
-
-func (s *server) middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		if len(r.Header.Get("X-Session-Token")) == 0 && !s.dryRun {
-			json.NewEncoder(w).Encode(response("Unauthorized", http.StatusUnauthorized))
-		} else {
-			next.ServeHTTP(w, r)
-		}
-	})
 }
 
 type Response struct {
@@ -167,19 +154,12 @@ func response(message string, statusCode int) Response {
 func determineStatusCodeByError(err error) int {
 	if err == nil {
 		return http.StatusOK
-	}
-
-	if kerrors.IsUnauthorized(err) {
+	} else if kerrors.IsUnauthorized(err) {
 		return http.StatusUnauthorized
-	}
-
-	if kerrors.IsForbidden(err) {
+	} else if kerrors.IsForbidden(err) {
 		return http.StatusForbidden
-	}
-
-	if kerrors.IsInternalError(err) {
+	} else if kerrors.IsInternalError(err) {
 		return http.StatusInternalServerError
 	}
-
 	return http.StatusBadRequest
 }

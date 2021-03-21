@@ -200,12 +200,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var clientGetter func(token string) v1.VegaV1Interface
-
 	clusterConfig, err := util.LoadClusterConfig()
 	if err != nil {
 		logrus.WithError(err).Error("could not load cluster clusterConfig")
 	}
+
+	var c v1.VegaV1Interface
 
 	if o.dryRun {
 		logrus.Info("Running on dry mode...")
@@ -213,32 +213,21 @@ func main() {
 		if err := o.startDryRun(ctx, fakecs.VegaV1()); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
+		c = fakecs.VegaV1()
+	} else {
 
 		vegaClient, err := client.NewForConfig(clusterConfig)
 		if err != nil {
 			logrus.WithError(err).Error("could not create client")
 		}
+		c = vegaClient.VegaV1()
 
-		clientGetter = func(token string) v1.VegaV1Interface {
-			return vegaClient.VegaV1()
-		}
-
-	} else {
-		clientGetter = func(token string) v1.VegaV1Interface {
-			clusterConfig.BearerToken = token
-			vegaClient, err := client.NewForConfig(clusterConfig)
-			if err != nil {
-				logrus.WithError(err).Error("could not create client")
-			}
-			return vegaClient.VegaV1()
-		}
 	}
 
 	s := server{
-		logger:       logrus.WithField("component", "apiserver"),
-		ctx:          ctx,
-		clientGetter: clientGetter,
-		dryRun:       o.dryRun,
+		logger: logrus.WithField("component", "apiserver"),
+		ctx:    ctx,
+		client: c,
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -247,7 +236,6 @@ func main() {
 	router.HandleFunc("/calculation", s.getCalculation)
 	router.HandleFunc("/calculations/create", s.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
-	router.Use(s.middleware)
 
 	logrus.Infof("Listening on %d port", o.port)
 	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
