@@ -236,6 +236,10 @@ func main() {
 	router.HandleFunc("/calculation", s.getCalculation)
 	router.HandleFunc("/calculations/create", s.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
+	router.HandleFunc("/healthz", func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(200)
+		rw.Write([]byte("OK"))
+	})
 
 	logrus.Infof("Listening on %d port", o.port)
 	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
