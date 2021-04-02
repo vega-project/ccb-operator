@@ -35,19 +35,19 @@ func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
 	}
 	err := decoder.Decode(&calc)
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't decode json params: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't decode json params", err)
 		return
 	}
 
 	t, err := strconv.ParseFloat(calc.Teff, 64)
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("teff is not a valid float64 number: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't parse teff as a float number", err)
 		return
 	}
 
 	l, err := strconv.ParseFloat(calc.LogG, 64)
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("logG is not a valid float64 number: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't parse logG as a float number", err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
 
 	c, err := s.client.Calculations().Create(s.ctx, calculation, metav1.CreateOptions{})
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't create calculation: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't create calculation", err)
 	} else {
 		json.NewEncoder(w).Encode(c)
 	}
@@ -71,7 +71,7 @@ func (s *server) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 	calcID := mux.Vars(r)["id"]
 	err := s.client.Calculations().Delete(s.ctx, calcID, metav1.DeleteOptions{})
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't delete calculation: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't delete calculation", err)
 	} else {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("calculation %q has been deleted", calcID), http.StatusOK))
 	}
@@ -87,7 +87,7 @@ func (s *server) getCalculations(w http.ResponseWriter, r *http.Request) {
 
 	calcList, err := s.client.Calculations().List(s.ctx, metav1.ListOptions{})
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculations list: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't get calculations list", err)
 	} else {
 		json.NewEncoder(w).Encode(calcList)
 	}
@@ -102,7 +102,7 @@ func (s *server) getCalculationByName(w http.ResponseWriter, r *http.Request) {
 	calcID := mux.Vars(r)["id"]
 	calc, err := s.client.Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculation %s: %v", calcID, err), determineStatusCodeByError(err)))
+		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcID), err)
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
@@ -120,20 +120,20 @@ func (s *server) getCalculation(w http.ResponseWriter, r *http.Request) {
 
 	t, err := strconv.ParseFloat(teff, 64)
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("teff is not a valid float64 number: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't parse teff as a float number", err)
 		return
 	}
 
 	l, err := strconv.ParseFloat(logG, 64)
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("logG is not a valid float64 number: %v", err), determineStatusCodeByError(err)))
+		responseError(w, "couldn't parse logG as a float number", err)
 		return
 	}
 
 	calcName := util.GetCalculationName(t, l)
 	calc, err := s.client.Calculations().Get(s.ctx, calcName, metav1.GetOptions{})
 	if err != nil {
-		json.NewEncoder(w).Encode(response(fmt.Sprintf("couldn't get calculation %s: %v", calcName, err), determineStatusCodeByError(err)))
+		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcName), err)
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
@@ -151,15 +151,19 @@ func response(message string, statusCode int) Response {
 	}
 }
 
-func determineStatusCodeByError(err error) int {
+func responseError(w http.ResponseWriter, message string, err error) {
+	statusCode := http.StatusBadRequest
+
 	if err == nil {
-		return http.StatusOK
+		statusCode = http.StatusOK
 	} else if kerrors.IsUnauthorized(err) {
-		return http.StatusUnauthorized
+		statusCode = http.StatusUnauthorized
 	} else if kerrors.IsForbidden(err) {
-		return http.StatusForbidden
+		statusCode = http.StatusForbidden
 	} else if kerrors.IsInternalError(err) {
-		return http.StatusInternalServerError
+		statusCode = http.StatusInternalServerError
 	}
-	return http.StatusBadRequest
+
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(response(fmt.Sprintf("%s: %v", message, err), statusCode))
 }
