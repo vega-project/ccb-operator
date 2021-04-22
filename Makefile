@@ -29,7 +29,7 @@ janitor:
 .PHONY: janitor
 
 apiserver:
-	oc create -f ./cluster/apiserver --dry-run -o yaml | oc apply -f - 
+	oc process -f ./cluster/apiserver | oc apply -f -
 .PHONY: apiserver
 
 storage:
