@@ -17,11 +17,6 @@ import (
 )
 
 type options struct {
-	dryCalculationsTotal int
-	dryRunFailureRate    int
-	dryWorkers           int
-	dryTickerMinutes     int
-
 	dryRun bool
 	port   int
 
@@ -34,11 +29,6 @@ func gatherOptions() options {
 
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
-
-	fs.IntVar(&o.dryCalculationsTotal, "dry-total-calculations", 100, "Number of total calculations (dry-run)")
-	fs.IntVar(&o.dryRunFailureRate, "dry-failure-rate", 20, "Calculations failure rate in percentage (dry-run)")
-	fs.IntVar(&o.dryWorkers, "dry-workers", 10, "Number of workers (dry-run)")
-	fs.IntVar(&o.dryTickerMinutes, "dry-ticker", 1, "Minutes per calculation update (dry-run)")
 
 	fs.Parse(os.Args[1:])
 	o.simulator.Bind(fs)
