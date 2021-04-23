@@ -23,3 +23,11 @@ spec:
         args:
           - --namespace=vega
           - --redis-url=redis:6379
+          - --redis-password-file=/etc/redis/database-password
+        volumeMounts:
+          - mountPath: /etc/redis
+            name: redis
+      volumes:
+        - name: redis
+          secret:
+            secretName: redis
