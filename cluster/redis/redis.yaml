@@ -1,0 +1,64 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+parameters:
+- description: The session secret for the component.
+  name: SESSION_SECRET
+  generate: expression
+  from: "[a-zA-Z0-9]{43}"
+objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    namespace: ${NAMESPACE}
+    name: redis
+  stringData:
+    database-password: "${SESSION_SECRET}="  
+- apiVersion: v1
+  kind: Service
+  metadata:
+    namespace: vega
+    name: redis
+    labels:
+      name: redis
+  spec:
+    selector:
+      name: redis
+    ports:
+    - name: main
+      port: 6379
+    type: ClusterIP
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: redis
+    labels:
+       name: redis
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+         name: redis
+    template:
+      metadata:
+        labels:
+           name: redis
+      spec:
+        containers:
+        - env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          image: redis:latest
+          imagePullPolicy: IfNotPresent
+          name: redis
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/redis/data
+              name: redis-data
+        volumes:
+          - emptyDir: {}
+            name: redis-data
