@@ -14,6 +14,37 @@ objects:
   metadata:
     name: apiserver
 
+- kind: ClusterRole
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: apiserver-oauth
+  rules:
+    - apiGroups:
+      - authentication.k8s.io
+      resources:
+      - tokenreviews
+      verbs:
+      - create
+    - apiGroups:
+      - authorization.k8s.io
+      resources:
+      - subjectaccessreviews
+      verbs:
+      - create
+- kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: apiserver-oauth
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: apiserver-oauth
+  subjects:
+  - kind: ServiceAccount
+    name: apiserver
+    namespace: ${NAMESPACE}
+
+
 - kind: ClusterRoleBinding
   apiVersion: rbac.authorization.k8s.io/v1
   metadata:
@@ -25,7 +56,7 @@ objects:
   subjects:
   - kind: ServiceAccount
     name: apiserver
-    namespace: vega
+    namespace: ${NAMESPACE}
 
 - kind: ClusterRoleBinding
   apiVersion: rbac.authorization.k8s.io/v1
@@ -38,12 +69,20 @@ objects:
   subjects:
   - kind: ServiceAccount
     name: apiserver
-    namespace: vega
+    namespace: ${NAMESPACE}
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    namespace: ${NAMESPACE}
+    name: apiserver-session-secret
+  stringData:
+    session_secret: "${SESSION_SECRET}="
 
 - apiVersion: v1
   kind: Service
   metadata:
-    namespace: vega
+    namespace: ${NAMESPACE}
     name: apiserver
     labels:
       app: apiserver
@@ -54,21 +93,30 @@ objects:
       app: apiserver
     ports:
     - name: main
-      port: 8080
+      port: 443
+      targetPort: 8443
     type: ClusterIP
 
 - apiVersion: v1
-  kind: Secret
+  kind: Route
   metadata:
     namespace: ${NAMESPACE}
-    name: apiserver-session-secret
-  stringData:
-    session_secret: "${SESSION_SECRET}="
+    name: apiserver
+    annotations:
+      haproxy.router.openshift.io/timeout: "90s"
+  spec:
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: Reencrypt
+    to:
+      kind: Service
+      name: apiserver
 
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
     name: apiserver
+    namespace: ${NAMESPACE}
     labels:
       app: apiserver
   spec:
@@ -93,6 +141,7 @@ objects:
           - containerPort: 8443
             name: web
           args:
+          - -pass-user-bearer-token
           - -provider=openshift
           - -https-address=:8443
           - -http-address=
