@@ -2,12 +2,15 @@ package workers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis"
 	"github.com/go-redis/redis"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -189,7 +192,6 @@ func TestDeleteAssignedCalculation(t *testing.T) {
 				t.Fatalf("couldn't set test data: %v", stringCmd.Err())
 			}
 			counter = counter + 1
-
 		}
 
 		fakeCalculationClient := fake.NewSimpleClientset()
@@ -262,11 +264,6 @@ func TestAssignCalulationDB(t *testing.T) {
 		DB:   0,
 	})
 
-	type testData struct {
-		name   string
-		values map[string]interface{}
-	}
-
 	type picked struct {
 		name string
 		teff string
@@ -275,14 +272,14 @@ func TestAssignCalulationDB(t *testing.T) {
 
 	testCases := []struct {
 		id                 string
-		data               []testData
+		data               []testDBData
 		expectToPick       picked
 		redisSortedSetName string
 	}{
 		{
 			id:                 "single value",
 			redisSortedSetName: "vz",
-			data: []testData{
+			data: []testDBData{
 				{
 					name:   "vz.star:teff_10000",
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4"},
@@ -293,7 +290,7 @@ func TestAssignCalulationDB(t *testing.T) {
 		{
 			id:                 "multiple values",
 			redisSortedSetName: "vz",
-			data: []testData{
+			data: []testDBData{
 				{
 					name:   "vz.star:teff_10000",
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4"},
@@ -317,7 +314,7 @@ func TestAssignCalulationDB(t *testing.T) {
 		{
 			id:                 "multiple values, existing processing status",
 			redisSortedSetName: "vz",
-			data: []testData{
+			data: []testDBData{
 				{
 					name:   "vz.star:teff_10000",
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4", "status": "Processing"},
@@ -340,7 +337,7 @@ func TestAssignCalulationDB(t *testing.T) {
 		{
 			id:                 "multiple values, existing processing statuses",
 			redisSortedSetName: "xy",
-			data: []testData{
+			data: []testDBData{
 				{
 					name:   "vz.star:teff_10000",
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4", "status": "Processing"},
@@ -364,7 +361,7 @@ func TestAssignCalulationDB(t *testing.T) {
 		{
 			id:                 "multiple values, scrambled existing processing statuses",
 			redisSortedSetName: "vz-test",
-			data: []testData{
+			data: []testDBData{
 				{
 					name:   "vz.star:teff_10000",
 					values: map[string]interface{}{"teff": "10000.0", "logG": "4", "status": "Processing"},
@@ -394,16 +391,8 @@ func TestAssignCalulationDB(t *testing.T) {
 				redisSortedSetName: tc.redisSortedSetName,
 			}
 
-			var counter float64
-			for _, testData := range tc.data {
-				if boolCmd := redisClient.HMSet(testData.name, testData.values); boolCmd.Err() != nil {
-					t.Fatalf("couldn't set test data: %v", boolCmd.Err())
-				}
-				if stringCmd := redisClient.ZAdd(tc.redisSortedSetName, redis.Z{Score: counter, Member: testData.name}); stringCmd.Err() != nil {
-					t.Fatalf("couldn't set test data: %v", stringCmd.Err())
-				}
-				counter = counter + 1
-
+			if err := fillDB(redisClient, tc.redisSortedSetName, tc.data); err != nil {
+				t.Fatal(err)
 			}
 
 			// Update assigned calculation
@@ -416,5 +405,167 @@ func TestAssignCalulationDB(t *testing.T) {
 			}
 			redisClient.FlushDB()
 		})
+	}
+}
+
+type testDBData struct {
+	name   string
+	values map[string]interface{}
+}
+
+func fillDB(redisClient *redis.Client, redisSortedSetName string, testDBDataList []testDBData) error {
+	var counter float64
+	for _, testDBData := range testDBDataList {
+		if boolCmd := redisClient.HMSet(testDBData.name, testDBData.values); boolCmd.Err() != nil {
+			return fmt.Errorf("couldn't set test data: %v", boolCmd.Err())
+		}
+		if stringCmd := redisClient.ZAdd(redisSortedSetName, redis.Z{Score: counter, Member: testDBData.name}); stringCmd.Err() != nil {
+			return fmt.Errorf("couldn't set test data: %v", stringCmd.Err())
+		}
+		counter = counter + 1
+	}
+	return nil
+}
+
+func TestCreateCalculationForPod(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	defer s.Close()
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: s.Addr(),
+		DB:   0,
+	})
+
+	testCases := []struct {
+		id                   string
+		podName              string
+		data                 []testDBData
+		calculations         []calculationsv1.Calculation
+		expectedCalculations []calculationsv1.Calculation
+	}{
+		{
+			id:      "created by human, happy case",
+			podName: "test-pod",
+			calculations: []calculationsv1.Calculation{
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 12000.0,
+						LogG: 4.0,
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
+				},
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 13000.0,
+						LogG: 4.0,
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc-2", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 30, 0, 0, time.UTC)}},
+				},
+			},
+			expectedCalculations: []calculationsv1.Calculation{
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 12000.0,
+						LogG: 4.0,
+					},
+					Assign:     "test-pod",
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
+				},
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 13000.0,
+						LogG: 4.0,
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc-2", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 30, 0, 0, time.UTC)}},
+				},
+			},
+		},
+		{
+			id:      "happy case, create calculation from redis",
+			podName: "test-pod",
+			data: []testDBData{
+				{
+					name:   "vz.star:teff_10000",
+					values: map[string]interface{}{"teff": "10000.0", "logG": "4"},
+				},
+				{
+					name:   "vz.star:teff_11000",
+					values: map[string]interface{}{"teff": "11000.0", "logG": "4"},
+				},
+				{
+					name:   "vz.star:teff_12000",
+					values: map[string]interface{}{"teff": "12000.0", "logG": "4"},
+				},
+				{
+					name:   "vz.star:teff_13000",
+					values: map[string]interface{}{"teff": "13000.0", "logG": "4"},
+				},
+			},
+			expectedCalculations: []calculationsv1.Calculation{
+				{
+					TypeMeta:   metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x", Labels: map[string]string{"assign": "test-pod"}},
+					DBKey:      "vz.star:teff_10000",
+					Assign:     "test-pod",
+					Phase:      calculationsv1.CreatedPhase,
+					Spec: calculationsv1.CalculationSpec{
+						Steps: []calculationsv1.Step{
+							{Command: "atlas12_ada", Args: []string{"s"}},
+							{Command: "atlas12_ada", Args: []string{"r"}},
+							{Command: "synspec49", Args: []string{"<", "input_tlusty_fortfive"}},
+						},
+						Teff: 10000,
+						LogG: 4,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeCalculationClient := fake.NewSimpleClientset()
+
+		for _, c := range tc.calculations {
+			_, err := fakeCalculationClient.VegaV1().Calculations().Create(context.TODO(), &c, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		if err := fillDB(redisClient, "vz", tc.data); err != nil {
+			t.Fatal(err)
+		}
+
+		c := &Controller{
+			logger:             logrus.WithField("test-name", tc.id),
+			calculationClient:  fakeCalculationClient,
+			redisClient:        redisClient,
+			redisSortedSetName: "vz",
+		}
+
+		if err := c.createCalculationForPod(tc.podName); err != nil {
+			t.Fatal(err)
+		}
+
+		actualCalculations, err := c.calculationClient.VegaV1().Calculations().List(c.ctx, metav1.ListOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expectedCalculations, actualCalculations.Items, cmpopts.IgnoreFields(metav1.Time{}, "Time")); diff != "" {
+			t.Fatal(diff)
+		}
+		redisClient.FlushDB()
 	}
 }
