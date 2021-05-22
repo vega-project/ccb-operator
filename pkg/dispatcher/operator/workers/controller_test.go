@@ -447,7 +447,34 @@ func TestCreateCalculationForPod(t *testing.T) {
 		expectedCalculations []calculationsv1.Calculation
 	}{
 		{
-			id:      "created by human, happy case",
+			id:      "created by human, single happy case",
+			podName: "test-pod",
+			calculations: []calculationsv1.Calculation{
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 12000.0,
+						LogG: 4.0,
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
+				},
+			},
+			expectedCalculations: []calculationsv1.Calculation{
+				{
+					Spec: calculationsv1.CalculationSpec{
+						Teff: 12000.0,
+						LogG: 4.0,
+					},
+					Assign:     "test-pod",
+					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
+					Phase:      calculationsv1.CreatedPhase,
+					Status:     calculationsv1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
+				},
+			},
+		},
+		{
+			id:      "created by human, multiple happy case",
 			podName: "test-pod",
 			calculations: []calculationsv1.Calculation{
 				{
