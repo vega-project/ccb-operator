@@ -193,15 +193,10 @@ func (c *Controller) syncHandler(key string) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get the list of calculations that are assigned to %s: %w", name, err)
 	}
-	if calculations == nil {
+
+	if calculations == nil || !hasAssignedCalculation(calculations) {
 		if err := c.createCalculationForPod(name); err != nil {
-			c.logger.WithError(err).Error("couldn't create calculation")
-		}
-	} else {
-		if !hasAssignedCalculation(calculations) {
-			if err := c.createCalculationForPod(name); err != nil {
-				c.logger.WithError(err).Error("couldn't create calculation")
-			}
+			c.logger.WithError(err).WithField("pod", name).Error("couldn't create calculation")
 		}
 	}
 	return nil
@@ -235,23 +230,37 @@ func (c *Controller) assignCalulationDB() (string, string, string) {
 
 func (c *Controller) createCalculationForPod(vegaPodName string) error {
 	labelSelector := labels.Set{"assign": "\"\"", "created_by_human": "\"true\""}.AsSelector().String()
-	calculations, err := c.calculationClient.VegaV1().Calculations().List(c.ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	humanCalculations, err := c.calculationClient.VegaV1().Calculations().List(c.ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return fmt.Errorf("couldn't get the list of created_by_human calculations %w", err)
 	}
 
-	var calculation *calculationsv1.Calculation
-	if len(calculations.Items) > 0 {
-		if len(calculations.Items) > 1 {
-			sort.Slice(calculations.Items, func(i, j int) bool {
-				return calculations.Items[i].Status.StartTime.Before(&calculations.Items[j].Status.StartTime)
+	var createdPhaseCalculations []calculationsv1.Calculation
+
+	for _, c := range humanCalculations.Items {
+		if c.Phase == calculationsv1.CreatedPhase {
+			createdPhaseCalculations = append(createdPhaseCalculations, c)
+		}
+	}
+
+	calculation := &calculationsv1.Calculation{}
+	if len(createdPhaseCalculations) > 0 {
+		if len(createdPhaseCalculations) > 1 {
+			sort.Slice(createdPhaseCalculations, func(i, j int) bool {
+				return createdPhaseCalculations[i].Status.StartTime.Before(&createdPhaseCalculations[j].Status.StartTime)
 			})
 		}
-		calculation = &calculations.Items[0]
-		calculation.Assign = vegaPodName
+
+		for i, calc := range createdPhaseCalculations {
+			if calc.Phase == calculationsv1.CreatedPhase {
+				calculation = createdPhaseCalculations[i].DeepCopy()
+				calculation.Assign = vegaPodName
+				break
+			}
+		}
 
 		if _, err = c.calculationClient.VegaV1().Calculations().Update(c.ctx, calculation, metav1.UpdateOptions{}); err != nil {
-			return err
+			return fmt.Errorf("couldn't update calculation: %v", err)
 		}
 
 	} else {
