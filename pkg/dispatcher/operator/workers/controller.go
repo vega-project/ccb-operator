@@ -178,7 +178,8 @@ func (c *Controller) syncHandler(key string) error {
 	pod, err := c.podLister.Pods(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return fmt.Errorf("Pod %s in work queue no longer exists", key)
+			c.logger.WithError(err).Warningf("pod %s no longer exists. Removed from queue", key)
+			return nil
 		}
 		return err
 	}
@@ -241,9 +242,11 @@ func (c *Controller) createCalculationForPod(vegaPodName string) error {
 
 	var calculation *calculationsv1.Calculation
 	if len(calculations.Items) > 0 {
-		sort.Slice(calculations.Items, func(i, j int) bool {
-			return calculations.Items[i].Status.StartTime.Before(&calculations.Items[j].Status.StartTime)
-		})
+		if len(calculations.Items) > 1 {
+			sort.Slice(calculations.Items, func(i, j int) bool {
+				return calculations.Items[i].Status.StartTime.Before(&calculations.Items[j].Status.StartTime)
+			})
+		}
 		calculation = &calculations.Items[0]
 		calculation.Assign = vegaPodName
 
