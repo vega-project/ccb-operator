@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -187,7 +188,10 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get a list of the calculations that are assinged to this pod
-	calculations, _ := c.calculationLister.List(labels.Set{"assign": name}.AsSelector())
+	calculations, err := c.calculationLister.List(labels.Set{"assign": name}.AsSelector())
+	if err != nil {
+		return fmt.Errorf("couldn't get the list of calculations that are assigned to %s: %w", name, err)
+	}
 	if calculations == nil {
 		if err := c.createCalculationForPod(name); err != nil {
 			c.logger.WithError(err).Error("couldn't create calculation")
@@ -229,44 +233,62 @@ func (c *Controller) assignCalulationDB() (string, string, string) {
 }
 
 func (c *Controller) createCalculationForPod(vegaPodName string) error {
-	// TODO: first check for created_by_human calculations
-	// then check in database
-	dbKey, teff, logG := c.assignCalulationDB()
-
-	if len(teff) == 0 {
-		// There is no calculation to be processed in the database.
-		return nil
-	}
-
-	t, err := strconv.ParseFloat(teff, 64)
+	labelSelector := labels.Set{"assign": "\"\"", "created_by_human": "\"true\""}.AsSelector().String()
+	calculations, err := c.calculationClient.VegaV1().Calculations().List(c.ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		return fmt.Errorf("couldn't parse teff [%s] as float: %v", teff, err)
-	}
-	l, err := strconv.ParseFloat(logG, 64)
-	if err != nil {
-		return fmt.Errorf("couldn't parse logG [%s] as float: %v", logG, err)
+		return fmt.Errorf("couldn't get the list of created_by_human calculations %w", err)
 	}
 
-	calculation := util.NewCalculation(t, l)
-	calculation.Labels = map[string]string{"assign": vegaPodName}
-	calculation.Assign = vegaPodName
-	calculation.DBKey = dbKey
+	var calculation *calculationsv1.Calculation
+	if len(calculations.Items) > 0 {
+		sort.Slice(calculations.Items, func(i, j int) bool {
+			return calculations.Items[i].Status.StartTime.Before(&calculations.Items[j].Status.StartTime)
+		})
+		calculation = &calculations.Items[0]
+		calculation.Assign = vegaPodName
 
-	c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		_, err = c.calculationClient.VegaV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
-		return err
-	}); err != nil {
-		c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")
-		return err
-	}
+		if _, err = c.calculationClient.VegaV1().Calculations().Update(c.ctx, calculation, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
 
-	toUpdate := make(map[string]interface{})
-	toUpdate["status"] = "Processing"
+	} else {
+		dbKey, teff, logG := c.assignCalulationDB()
 
-	c.logger.WithFields(logrus.Fields{"dbKey": dbKey, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
-	if boolCmd := c.redisClient.HMSet(dbKey, toUpdate); boolCmd.Err() != nil {
-		return fmt.Errorf("couldn't update status in database: %v", boolCmd.Err())
+		if len(teff) == 0 {
+			// There is no calculation to be processed in the database.
+			return nil
+		}
+
+		t, err := strconv.ParseFloat(teff, 64)
+		if err != nil {
+			return fmt.Errorf("couldn't parse teff [%s] as float: %v", teff, err)
+		}
+		l, err := strconv.ParseFloat(logG, 64)
+		if err != nil {
+			return fmt.Errorf("couldn't parse logG [%s] as float: %v", logG, err)
+		}
+
+		calculation = util.NewCalculation(t, l)
+		calculation.Labels = map[string]string{"assign": vegaPodName}
+		calculation.Assign = vegaPodName
+		calculation.DBKey = dbKey
+
+		c.logger.WithFields(logrus.Fields{"name": calculation.Name, "for-pod": vegaPodName}).Info("Creating new calculation...")
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			_, err = c.calculationClient.VegaV1().Calculations().Create(c.ctx, calculation, metav1.CreateOptions{})
+			return err
+		}); err != nil {
+			c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't create new calculation.")
+			return err
+		}
+
+		toUpdate := make(map[string]interface{})
+		toUpdate["status"] = "Processing"
+
+		c.logger.WithFields(logrus.Fields{"dbKey": dbKey, "teff": teff, "logG": logG, "toUpdate": toUpdate}).Info("Updating database...")
+		if boolCmd := c.redisClient.HMSet(dbKey, toUpdate); boolCmd.Err() != nil {
+			return fmt.Errorf("couldn't update status in database: %v", boolCmd.Err())
+		}
 	}
 
 	return nil

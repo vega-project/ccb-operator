@@ -54,7 +54,7 @@ type Step struct {
 
 type CalculationStatus struct {
 	//Conditions represent the latest available observations of an object's current state:
-	// StartTime is equal to the creation time of the ProwJob
+	// StartTime is equal to the creation time of the Calculation
 	StartTime metav1.Time `json:"startTime,omitempty"`
 	// PendingTime is the timestamp for when the job moved from triggered to pending
 	PendingTime *metav1.Time `json:"pendingTime,omitempty"`
