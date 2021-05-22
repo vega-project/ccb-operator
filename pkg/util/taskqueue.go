@@ -5,10 +5,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-
-	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 // TaskQueue holds all the information needed to create a task queue.
@@ -77,8 +77,11 @@ func (t *TaskQueue) processNextWorkItem() bool {
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		if err := t.syncHandler(key); err != nil {
-			// Put the item back on the workqueue to handle any transient errors.
-			t.Workqueue.AddRateLimited(key)
+
+			if !kerrors.IsNotFound(err) {
+				// Put the item back on the workqueue to handle any transient errors.
+				t.Workqueue.AddRateLimited(key)
+			}
 			return fmt.Errorf("%q controller error syncing '%s': %s, requeuing", t.controllerName, key, err.Error())
 		}
 		// Finally, if no error occurs we Forget this item so it does not
