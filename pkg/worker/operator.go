@@ -58,11 +58,12 @@ func (op *Operator) Initialize() {
 
 	executeChan := make(chan *calculationsv1.Calculation)
 	stepUpdaterChan := make(chan executor.Result)
+	calcErrorChan := make(chan string)
 
-	op.executor = executor.NewExecutor(executeChan, stepUpdaterChan, op.nfsPath,
+	op.executor = executor.NewExecutor(executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
 		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile)
 
-	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Vega().V1().Calculations(), executeChan, stepUpdaterChan, op.hostname)
+	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Vega().V1().Calculations(), executeChan, calcErrorChan, stepUpdaterChan, op.hostname)
 }
 
 func (op *Operator) Run(stopCh <-chan struct{}) error {

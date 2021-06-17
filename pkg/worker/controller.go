@@ -39,10 +39,11 @@ type Controller struct {
 	taskQueue            *util.TaskQueue
 	executeChan          chan *calculationsv1.Calculation
 	stepUpdaterChan      chan executor.Result
+	calcErrorChan        chan string
 	hostname             string
 }
 
-func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, executeChan chan *calculationsv1.Calculation, stepUpdaterChan chan executor.Result, hostname string) *Controller {
+func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
@@ -53,6 +54,7 @@ func NewController(ctx context.Context, calculationClientSet calculationsclient.
 		logger:               logger,
 		executeChan:          executeChan,
 		stepUpdaterChan:      stepUpdaterChan,
+		calcErrorChan:        calcErrorChan,
 		hostname:             hostname,
 	}
 
@@ -204,8 +206,27 @@ func (c *Controller) resultUpdater(stopCh <-chan struct{}) {
 		case <-stopCh:
 			c.logger.Info("Stopping resultUpdater")
 			break
+		case calcName := <-c.calcErrorChan:
+			if err := c.updateErrorCalculation(calcName); err != nil {
+				c.logger.WithError(err).WithField("calc-name", calcName).Error("Error updating calculation")
+			}
 		}
 	}
+}
+
+func (c *Controller) updateErrorCalculation(name string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		newCalc.Phase = calculationsv1.FailedPhase
+
+		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func (c *Controller) updateCalculation(r executor.Result) error {
