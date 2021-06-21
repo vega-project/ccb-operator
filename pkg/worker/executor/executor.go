@@ -32,6 +32,7 @@ type Executor struct {
 	logger                   *logrus.Entry
 	executeChan              chan *calculationsv1.Calculation // Replace it with steps struct
 	stepUpdaterChan          chan Result
+	calcErrorChan            chan string
 	Status                   string
 	nfsPath                  string
 	atlasControlFiles        string
@@ -50,10 +51,11 @@ type Result struct {
 }
 
 // NewExecutor ...
-func NewExecutor(executeChan chan *calculationsv1.Calculation, stepUpdaterChan chan Result, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Executor {
+func NewExecutor(executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan Result, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Executor {
 	return &Executor{
 		executeChan:              executeChan,
 		stepUpdaterChan:          stepUpdaterChan,
+		calcErrorChan:            calcErrorChan,
 		nfsPath:                  nfsPath,
 		atlasControlFiles:        atlasControlFiles,
 		atlasDataFiles:           atlasDataFiles,
@@ -74,6 +76,7 @@ func (e *Executor) Run() {
 			// Setting stack limit
 			if err := setUnlimitStack(); err != nil {
 				e.logger.WithError(err).Error("couln't set stack limit")
+				e.calcErrorChan <- calc.Name
 				break
 			}
 
@@ -85,12 +88,14 @@ func (e *Executor) Run() {
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, os.ModePerm); err != nil {
 					e.logger.WithError(err).Error("couln't create directory. Aborting...")
+					e.calcErrorChan <- calc.Name
 					break
 				}
 			}
 
 			// Creating symbolic links with the data/control files for atlas12_ada
 			if err := e.createSymbolicLinks([]string{e.atlasControlFiles, e.atlasDataFiles}, calcPath); err != nil {
+				e.calcErrorChan <- calc.Name
 				break
 			}
 
