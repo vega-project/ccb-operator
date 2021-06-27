@@ -17,8 +17,9 @@ import (
 )
 
 type options struct {
-	dryRun bool
-	port   int
+	dryRun     bool
+	port       int
+	resultsDir string
 
 	simulator simulator
 }
@@ -29,6 +30,7 @@ func gatherOptions() options {
 
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
+	fs.StringVar(&o.resultsDir, "calculation-results-dir", "", "Path were the results of the calculations exist.")
 
 	fs.Parse(os.Args[1:])
 	o.simulator.Bind(fs)
@@ -58,19 +60,18 @@ func main() {
 		}
 		c = fakecs.VegaV1()
 	} else {
-
 		vegaClient, err := client.NewForConfig(clusterConfig)
 		if err != nil {
 			logrus.WithError(err).Error("could not create client")
 		}
 		c = vegaClient.VegaV1()
-
 	}
 
 	s := server{
-		logger: logrus.WithField("component", "apiserver"),
-		ctx:    ctx,
-		client: c,
+		logger:      logrus.WithField("component", "apiserver"),
+		ctx:         ctx,
+		client:      c,
+		resultsPath: o.resultsDir,
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -79,6 +80,9 @@ func main() {
 	router.HandleFunc("/calculation", s.getCalculation)
 	router.HandleFunc("/calculations/create", s.createCalculation)
 	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
+	router.HandleFunc("/calculations/results", s.getCalculationResults)
+	router.HandleFunc("/calculations/results/{id}", s.getCalculationResultsByID)
+
 	router.HandleFunc("/healthz", func(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(200)
 		rw.Write([]byte("OK"))

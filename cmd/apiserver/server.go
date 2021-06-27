@@ -1,10 +1,15 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -16,9 +21,10 @@ import (
 )
 
 type server struct {
-	logger *logrus.Entry
-	ctx    context.Context
-	client v1.VegaV1Interface
+	logger      *logrus.Entry
+	ctx         context.Context
+	client      v1.VegaV1Interface
+	resultsPath string
 }
 
 func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +158,108 @@ func (s *server) getCalculation(w http.ResponseWriter, r *http.Request) {
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
+}
+
+func (s *server) sendResults(w http.ResponseWriter, teff, logG float64) {
+	resultDirName := fmt.Sprintf("%.1f___%.2f", teff, logG)
+
+	fort7Data, err := ioutil.ReadFile(filepath.Join(s.resultsPath, resultDirName, "fort.7"))
+	if err != nil {
+		responseError(w, "File reading error", err)
+		return
+	}
+
+	fort8Data, err := ioutil.ReadFile(filepath.Join(s.resultsPath, resultDirName, "fort.8"))
+	if err != nil {
+		responseError(w, "File reading error", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	var files = []struct {
+		name string
+		data []byte
+	}{
+		{"fort.7", fort7Data},
+		{"fort.8", fort8Data},
+	}
+	for _, file := range files {
+		hdr := &tar.Header{
+			Name: file.name,
+			Mode: 0600,
+			Size: int64(len(file.data)),
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			responseError(w, "couldn't write header while creating the tar file", err)
+			return
+		}
+		if _, err := tw.Write(file.data); err != nil {
+			responseError(w, "couldn't write data while creating the tar file", err)
+			return
+		}
+	}
+
+	if err := tw.Close(); err != nil {
+		responseError(w, "couldn't close the tar file", err)
+		return
+	}
+
+	tarBytes := buf.Bytes()
+	w.Header().Set("Content-Disposition", "attachment; filename="+fmt.Sprintf("%.1f_%.2f-results.tar.gz", teff, logG))
+	w.Header().Set("Content-Type", http.DetectContentType(tarBytes))
+
+	tarReader := bytes.NewReader(tarBytes)
+	if _, err := io.Copy(w, tarReader); err != nil {
+		responseError(w, "couldn't copy data into response writer", err)
+	}
+}
+
+func (s *server) getCalculationResultsByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	calcID := mux.Vars(r)["id"]
+
+	calc, err := s.client.Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
+	if err != nil {
+		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcID), err)
+		return
+	}
+	s.sendResults(w, calc.Spec.Teff, calc.Spec.LogG)
+}
+
+func (s *server) getCalculationResults(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	teff := string(r.URL.Query().Get("teff"))
+	logG := string(r.URL.Query().Get("logg"))
+
+	t, err := strconv.ParseFloat(teff, 64)
+	if err != nil {
+		responseError(w, "couldn't parse teff as a float number", err)
+		return
+	}
+
+	l, err := strconv.ParseFloat(logG, 64)
+	if err != nil {
+		responseError(w, "couldn't parse logG as a float number", err)
+		return
+	}
+
+	s.sendResults(w, t, l)
 }
 
 type Response struct {
