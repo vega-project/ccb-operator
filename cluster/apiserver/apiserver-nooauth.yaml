@@ -1,0 +1,79 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+parameters:
+- description: "The namespace. Must come from a var or it will get stripped off"
+  name: NAMESPACE
+  value: vega
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    namespace: ${NAMESPACE}
+    name: apiserver-no-oauth
+    labels:
+      app: apiserver-no-oauth
+  spec:
+    selector:
+      app: apiserver-no-oauth
+    ports:
+    - name: main
+      port: 8080
+      targetPort: 8080
+    type: ClusterIP
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    namespace: ${NAMESPACE}
+    name: apiserver-no-oauth
+    annotations:
+      haproxy.router.openshift.io/timeout: "90s"
+  spec:
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: Reencrypt
+    to:
+      kind: Service
+      name: apiserver-no-oauth
+
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: apiserver-no-oauth
+    namespace: ${NAMESPACE}
+    labels:
+      app: apiserver-no-oauth
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: apiserver-no-oauth
+    template:
+      metadata:
+        labels:
+          app: apiserver-no-oauth
+      spec:
+        serviceAccount: apiserver
+        serviceAccountName: apiserver        
+        updateStrategy:
+          type: RollingUpdate
+        containers:
+        - name: apiserver
+          image: ghcr.io/vega-project/vega-project/ccb-operator/apiserver:latest
+          args:
+          - --dry-run=false
+          - --calculation-results-dir=/var/tmp/nfs/results
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            timeoutSeconds: 3
+            periodSeconds: 3
+          volumeMounts:
+          - mountPath: /var/tmp/nfs
+            name: calculations
+        volumes:
+        - name: calculations
+          persistentVolumeClaim:
+            claimName: results-nfs-claim
+
