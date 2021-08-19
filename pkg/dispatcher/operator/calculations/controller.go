@@ -6,7 +6,6 @@ import (
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/go-redis/redis"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/tools/cache"
@@ -126,7 +125,6 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Get the calculation resource with this namespace/name
 	calc, err := c.calculationLister.Get(name)
-	calculationValues.With(prometheus.Labels{"calc_id": calc.Name, "status": string(calc.Phase), "creation_time": calc.Status.StartTime.Time.String()}).Inc()
 	if err != nil {
 		if errors.IsNotFound(err) {
 			runtime.HandleError(fmt.Errorf("calculation '%s' in work queue no longer exists", key))

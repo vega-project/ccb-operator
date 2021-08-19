@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
