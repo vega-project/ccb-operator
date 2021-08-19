@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
@@ -114,6 +116,11 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":3001", nil)
+	}()
 
 	go leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 		Lock:          lock,

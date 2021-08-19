@@ -6,6 +6,7 @@ import (
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/go-redis/redis"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/tools/cache"
@@ -27,6 +28,21 @@ import (
 const (
 	controllerName = "Calculations"
 )
+
+var calculationValues = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: "vega",
+	Name:      "vega_calculations",
+	Help:      "Calculation ID, status and time of creation",
+},
+	[]string{
+		"calc_id",
+		"status",
+		"creation_time",
+	})
+
+func init() {
+	prometheus.Register(calculationValues)
+}
 
 // Controller ...
 type Controller struct {
