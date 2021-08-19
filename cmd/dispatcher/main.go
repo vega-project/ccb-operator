@@ -114,8 +114,10 @@ func main() {
 		logger.Fatalf("Failed to create lock: %v", err)
 	}
 
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":3001", nil)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":3001", nil)
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

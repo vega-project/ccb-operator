@@ -41,8 +41,7 @@ var calculationValues = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	})
 
 func init() {
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(calculationValues)
+	prometheus.Register(calculationValues)
 }
 
 // Controller ...
