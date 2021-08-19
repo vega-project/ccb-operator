@@ -31,7 +31,7 @@ const (
 
 var calculationValues = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	Namespace: "vega",
-	Name:      "vega_calculations",
+	Name:      "calculations",
 	Help:      "Calculation ID, status and time of creation",
 },
 	[]string{
