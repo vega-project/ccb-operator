@@ -8,6 +8,7 @@ import (
 	"time"
 
 	redis "github.com/go-redis/redis"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,20 @@ import (
 const (
 	controllerName = "WorkerPods"
 )
+
+var podStatusValue = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: "vega",
+	Name:      "pod_status",
+	Help:      "Status of a worker pod",
+},
+	[]string{
+		"pod_name",
+		"pod_status",
+	})
+
+func init() {
+	prometheus.Register(podStatusValue)
+}
 
 // Controller ...
 type Controller struct {
@@ -190,6 +205,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Get a list of the calculations that are assinged to this pod
 	calculations, err := c.calculationLister.List(labels.Set{"assign": name}.AsSelector())
+	podStatusValue.With(prometheus.Labels{"pod_name": pod.Name, "pod_status": string(pod.Status.Phase)}).Inc()
 	if err != nil {
 		return fmt.Errorf("couldn't get the list of calculations that are assigned to %s: %w", name, err)
 	}
