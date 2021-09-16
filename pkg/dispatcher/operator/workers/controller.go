@@ -106,8 +106,7 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface, podInfo
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
-			controller.logger.WithField("pod-name", pod.Name).Warn("Deleting...")
-			controller.taskQueue.Enqueue(obj)
+			controller.logger.WithField("pod-name", pod.Name).Warn("Deleted")
 		},
 	})
 
