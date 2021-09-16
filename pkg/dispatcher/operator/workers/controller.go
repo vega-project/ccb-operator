@@ -205,10 +205,10 @@ func (c *Controller) syncHandler(key string) error {
 
 	// Get a list of the calculations that are assinged to this pod
 	calculations, err := c.calculationLister.List(labels.Set{"assign": name}.AsSelector())
-	podStatusValue.With(prometheus.Labels{"pod_name": pod.Name, "pod_status": string(pod.Status.Phase)}).Inc()
 	if err != nil {
 		return fmt.Errorf("couldn't get the list of calculations that are assigned to %s: %w", name, err)
 	}
+	podStatusValue.With(prometheus.Labels{"pod_name": pod.Name, "pod_status": string(pod.Status.Phase)}).Inc()
 
 	if calculations == nil || !hasAssignedCalculation(calculations) {
 		if err := c.createCalculationForPod(name); err != nil {
