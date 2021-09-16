@@ -17,7 +17,7 @@ objects:
     persistentVolumeReclaimPolicy: Retain
     storageClassName: nfs
     nfs:
-      path: /var/tmp/nfs
+      path: /mnt/vega-nfs
       server: ${NFS_SEVER_IP}
 - apiVersion: v1
   kind: PersistentVolumeClaim
