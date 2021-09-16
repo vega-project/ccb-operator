@@ -77,7 +77,6 @@ func (t *TaskQueue) processNextWorkItem() bool {
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		if err := t.syncHandler(key); err != nil {
-
 			if !kerrors.IsNotFound(err) {
 				// Put the item back on the workqueue to handle any transient errors.
 				t.Workqueue.AddRateLimited(key)

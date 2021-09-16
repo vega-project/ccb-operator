@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/diff"
@@ -192,10 +191,6 @@ func (c *Controller) syncHandler(key string) error {
 	// Get the Pod resource with this namespace/name
 	pod, err := c.podLister.Pods(namespace).Get(name)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			c.logger.WithError(err).Warningf("pod %s no longer exists. Removed from queue", key)
-			return nil
-		}
 		return err
 	}
 
