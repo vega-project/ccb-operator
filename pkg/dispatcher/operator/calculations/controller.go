@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -127,10 +126,6 @@ func (c *Controller) syncHandler(key string) error {
 	// Get the calculation resource with this namespace/name
 	calc, err := c.calculationLister.Get(name)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			runtime.HandleError(fmt.Errorf("calculation '%s' in work queue no longer exists", key))
-			return nil
-		}
 		return err
 	}
 	calculationValues.With(prometheus.Labels{"calc_id": calc.Name, "status": string(calc.Phase), "creation_time": calc.Status.StartTime.Time.String()}).Inc()

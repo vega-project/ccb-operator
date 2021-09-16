@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -114,9 +113,6 @@ func (c *Controller) syncHandler(key string) error {
 	// Get the calculation resource with this namespace/name
 	calculation, err := c.calculationLister.Get(name)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return fmt.Errorf("calculation %s in work queue no longer exists", key)
-		}
 		return err
 	}
 
