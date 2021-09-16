@@ -70,7 +70,8 @@ func NewController(ctx context.Context, calculationClientSet calculationsclient.
 			controller.taskQueue.Enqueue(changed)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.taskQueue.Enqueue(obj)
+			calc := obj.(*calculationsv1.Calculation)
+			controller.logger.WithField("calculation", calc.Name).Warn("Deleted")
 		},
 	})
 

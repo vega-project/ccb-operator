@@ -75,8 +75,7 @@ func NewController(ctx context.Context, calculationClientSet calculationsclient.
 		},
 		DeleteFunc: func(obj interface{}) {
 			calc := obj.(*calculationsv1.Calculation)
-			controller.logger.WithField("calculation", calc.Name).Warn("Deleting...")
-			controller.taskQueue.Enqueue(obj)
+			controller.logger.WithField("calculation", calc.Name).Warn("Deleted")
 		},
 	})
 
