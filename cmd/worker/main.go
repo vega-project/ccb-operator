@@ -64,6 +64,10 @@ func validateOptions(o options) error {
 }
 
 func main() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		DisableQuote: true,
+	})
+
 	logger := logrus.New()
 
 	o := gatherOptions()

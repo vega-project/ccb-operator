@@ -158,6 +158,9 @@ func (e *Executor) Run() {
 					cmdErr = err
 				}
 
+				// TODO: Remove this after MVP
+				e.logger.WithField("output", string(combinedOut)).Error("command succeded...")
+
 				result := Result{
 					CalcName:     calc.Name,
 					Step:         index,
