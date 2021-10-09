@@ -158,6 +158,10 @@ func (e *Executor) Run() {
 					cmdErr = err
 				}
 
+				// We are working on an NFS. We need to wait a second for the files to be created properly.
+				// Otherwise there is a chance the 2nd step to fail
+				time.Sleep(1 * time.Second)
+
 				result := Result{
 					CalcName:     calc.Name,
 					Step:         index,
@@ -168,6 +172,11 @@ func (e *Executor) Run() {
 
 				e.logger.WithFields(fields).WithField("status", status).Info("Command finished")
 				e.stepUpdaterChan <- result
+
+				if status == "Failed" {
+					e.calcErrorChan <- calc.Name
+					break
+				}
 			}
 		}
 	}
