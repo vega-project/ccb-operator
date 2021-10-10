@@ -141,7 +141,6 @@ func (e *Executor) Run() {
 				var cmdErr error
 				status = "Completed"
 
-				// TODO test this :)
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 				defer cancel()
 
@@ -156,10 +155,10 @@ func (e *Executor) Run() {
 					e.logger.WithError(err).WithField("output", string(combinedOut)).Error("command failed...")
 					status = "Failed"
 					cmdErr = err
+					if err := e.dumpCommandOutput(calcPath, index, combinedOut); err != nil {
+						e.logger.WithError(err).Error("couldn't dump command output to file")
+					}
 				}
-
-				// TODO: Remove this after MVP
-				e.logger.WithField("output", string(combinedOut)).Error("command succeded...")
 
 				result := Result{
 					CalcName:     calc.Name,
@@ -171,9 +170,22 @@ func (e *Executor) Run() {
 
 				e.logger.WithFields(fields).WithField("status", status).Info("Command finished")
 				e.stepUpdaterChan <- result
+
+				if status == "Failed" {
+					break
+				}
 			}
 		}
 	}
+}
+
+func (e *Executor) dumpCommandOutput(calcPath string, step int, data []byte) error {
+	outFile := fmt.Sprintf("step-%d", step)
+	e.logger.WithField("filename", outFile).Info("Dumping command output to a file")
+	if err := ioutil.WriteFile(outFile, data, 0777); err != nil {
+		return fmt.Errorf("couldn't generate the command output file: %v", err)
+	}
+	return nil
 }
 
 // generateInputFile generates the input file to be used by Atlas12
