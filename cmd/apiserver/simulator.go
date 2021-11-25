@@ -41,7 +41,6 @@ func (s *simulator) startDryRun() error {
 		teff++
 
 		newCalc := util.NewCalculation(float64(teff), 4.0)
-		newCalc.DBKey = fmt.Sprintf("vz.star:teff_%d", teff)
 
 		dryCalcList = append(dryCalcList, newCalc)
 

@@ -1,28 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-APIS_DIR="github.com/vega-project/ccb-operator/pkg/apis/calculations"
-VERSION="v1"
-APIS_VERSION_DIR="${APIS_DIR}/${VERSION}"
-OUTPUT_DIR="github.com/vega-project/ccb-operator/pkg/client"
-CLIENTSET_DIR="${OUTPUT_DIR}/clientset"
-LISTERS_DIR="${OUTPUT_DIR}/listers"
-INFORMERS_DIR="${OUTPUT_DIR}/informers"
+set -euxo pipefail
 
-echo Generating deepcopy
-deepcopy-gen --input-dirs ${APIS_VERSION_DIR} \
-	-O zz_generated.deepcopy --bounding-dirs ${APIS_DIR}
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen object \
+    paths=./pkg/apis/calculations/v1 \
+    output:dir=./pkg/apis/calculations/v1
 
-echo Generating clientset
-client-gen --clientset-name versioned \
-	--input-base '' --input ${APIS_VERSION_DIR} \
-	--clientset-path ${CLIENTSET_DIR}
 
-echo Generating lister
-lister-gen --input-dirs ${APIS_VERSION_DIR} \
-	--output-package ${LISTERS_DIR}
-
-echo Generating informer
-informer-gen --input-dirs ${APIS_VERSION_DIR} \
-	--versioned-clientset-package "${CLIENTSET_DIR}/versioned" \
-	--listers-package ${LISTERS_DIR} \
-	--output-package ${INFORMERS_DIR}
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:allowDangerousTypes=true \
+    paths=./pkg/apis/calculations/v1 \
+    output:dir=./pkg/apis/calculations/v1
