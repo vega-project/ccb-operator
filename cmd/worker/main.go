@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
 	"github.com/vega-project/ccb-operator/pkg/util"
@@ -23,6 +23,8 @@ type options struct {
 	atlasDataFiles           string
 	kuruzModelTemplateFile   string
 	synspecInputTemplateFile string
+	namespace                string
+	dryRun                   bool
 }
 
 func gatherOptions() options {
@@ -35,6 +37,8 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.kuruzModelTemplateFile, "kuruz-model-template-file", "", "Kuruz model template file.")
 	fs.StringVar(&o.synspecInputTemplateFile, "synspec-input-template-file", "", "Synspec input template file.")
+	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
+	fs.BoolVar(&o.dryRun, "dry-run", true, "")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -102,10 +106,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, kubeclient, vegaClient, hostname, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile)
+	op := worker.NewMainOperator(ctx, kubeclient, vegaClient, hostname, o.namespace, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
 
 	// Initialize operator
 	op.Initialize()

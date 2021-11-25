@@ -7,147 +7,174 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/retry"
-	"k8s.io/client-go/util/workqueue"
-
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/diff"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
+
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	calculationsclient "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations/v1"
-	listers "github.com/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
-	"github.com/vega-project/ccb-operator/pkg/util"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
 const (
-	controllerName = "Calculations"
+	controllerName = "calculations"
 )
 
-type Controller struct {
-	ctx                  context.Context
-	calculationLister    listers.CalculationLister
-	calculationClientSet calculationsclient.Interface
-	logger               *logrus.Entry
-	calculationsSynced   cache.InformerSynced
-	taskQueue            *util.TaskQueue
-	executeChan          chan *calculationsv1.Calculation
-	stepUpdaterChan      chan executor.Result
-	calcErrorChan        chan string
-	hostname             string
-}
-
-func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname string) *Controller {
-	logger := logrus.WithField("controller", "calculations")
-	logger.Level = logrus.DebugLevel
-	controller := &Controller{
-		ctx:                  ctx,
-		calculationLister:    calculationInformer.Lister(),
-		calculationsSynced:   calculationInformer.Informer().HasSynced,
-		calculationClientSet: calculationClientSet,
-		logger:               logger,
-		executeChan:          executeChan,
-		stepUpdaterChan:      stepUpdaterChan,
-		calcErrorChan:        calcErrorChan,
-		hostname:             hostname,
-	}
-
-	controller.taskQueue = util.NewTaskQueue(
-		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName),
-		controller.syncHandler, controllerName, logger)
-
-	logger.Info("Setting up the Calculations event handlers")
-	calculationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			mObj := obj.(*calculationsv1.Calculation)
-			controller.taskQueue.Enqueue(mObj)
-		},
-		UpdateFunc: func(old, changed interface{}) {
-			if !equality.Semantic.DeepEqual(old, changed) {
-				controller.logger.Debugf("Updating object: %q", diff.ObjectReflectDiff(old, changed))
-			}
-			controller.taskQueue.Enqueue(changed)
-		},
-		DeleteFunc: func(obj interface{}) {
-			calc := obj.(*calculationsv1.Calculation)
-			controller.logger.WithField("calculation", calc.Name).Warn("Deleted")
+func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string, executeChan chan *calculationsv1.Calculation) error {
+	c, err := controller.New(controllerName, mgr, controller.Options{
+		MaxConcurrentReconciles: 1,
+		Reconciler: &reconciler{
+			logger:      logrus.WithField("controller", controllerName),
+			client:      mgr.GetClient(),
+			hostname:    hostname,
+			executeChan: executeChan,
 		},
 	})
-
-	return controller
-}
-
-// Run will set up the event handlers for types we are interested in, as well
-// as syncing informer caches and starting workers. It will block until stopCh
-// is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
-
-// TODO add waitgroup
-func (c *Controller) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
-	defer c.taskQueue.Workqueue.ShutDown()
-
-	// Start the informer factories to begin populating the informer caches
-	c.logger.Info("Starting Calculations controller")
-
-	// Wait for the caches to be synced before starting workers
-	c.logger.Info("Waiting for calculations informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.calculationsSynced); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
+	if err != nil {
+		return fmt.Errorf("failed to construct controller: %w", err)
 	}
 
-	c.logger.Info("Starting calculation worker")
-	go wait.Until(c.taskQueue.RunWorker, time.Second, stopCh)
+	predicateFuncs := predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 
-	c.logger.Info("Starting calculation results updater")
-	go c.resultUpdater(stopCh)
+	if err := c.Watch(source.NewKindWithCache(&v1.Calculation{}, mgr.GetCache()), calculationHandler(), predicateFuncs); err != nil {
+		return fmt.Errorf("failed to create watch for Calculations: %w", err)
+	}
 
-	<-stopCh
 	return nil
 }
 
-func (c *Controller) syncHandler(key string) error {
-	// Convert the namespace/name string into a distinct namespace and name
-	_, name, err := cache.SplitMetaNamespaceKey(key)
+func calculationHandler() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
+		calc, ok := o.(*v1.Calculation)
+		if !ok {
+			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a Calculation")
+			return nil
+		}
+
+		return []reconcile.Request{
+			{NamespacedName: types.NamespacedName{Namespace: calc.Namespace, Name: calc.Name}},
+		}
+	})
+}
+
+type reconciler struct {
+	logger      *logrus.Entry
+	client      ctrlruntimeclient.Client
+	executeChan chan *calculationsv1.Calculation
+
+	hostname string
+}
+
+func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	logger := r.logger.WithField("request", req.String())
+	err := r.reconcile(ctx, req, logger)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
-		return nil
+		logger.WithError(err).Error("Reconciliation failed")
+	} else {
+		logger.Info("Finished reconciliation")
+	}
+	return reconcile.Result{}, err
+}
+
+func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logger *logrus.Entry) error {
+	logger.Info("Starting reconciliation")
+
+	calculation := &v1.Calculation{}
+	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calculation)
+	if err != nil {
+		return fmt.Errorf("failed to get pod: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	// Get the calculation resource with this namespace/name
-	calculation, err := c.calculationLister.Get(name)
-	if err != nil {
-		return err
-	}
-
-	if calculation.Assign == c.hostname {
+	if calculation.Assign == r.hostname {
 		switch calculation.Phase {
-		case calculationsv1.CreatedPhase:
-			c.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
-			calculation.Phase = calculationsv1.ProcessingPhase
-			calculation.Status.PendingTime = &metav1.Time{Time: time.Now()}
+		case v1.CreatedPhase:
+			r.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
 
-			c.logger.Info("Sent for execution")
-			c.executeChan <- calculation
+			r.logger.Info("Sent for execution")
+			r.executeChan <- calculation
 
-			if err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-				_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, calculation, metav1.UpdateOptions{})
-				return err
+			if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				calculation := &v1.Calculation{}
+				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calculation); err != nil {
+					return fmt.Errorf("failed to get the calculation: %w", err)
+				}
+
+				calculation.Phase = calculationsv1.ProcessingPhase
+				calculation.Status.PendingTime = &metav1.Time{Time: time.Now()}
+
+				r.logger.WithField("calculation", calculation.Name).Info("Updating calculation phase...")
+				if err := r.client.Update(ctx, calculation); err != nil {
+					return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+				}
+				return nil
 			}); err != nil {
-				c.logger.WithField("calculation", calculation.Name).WithError(err).Error("Couldn't update calculation.")
+				return err
 			}
 		case calculationsv1.ProcessingPhase:
 			if isFinishedCalculation(calculation.Spec.Steps) {
-				c.updateCalculationPhase(calculation, getCalculationFinalPhase(calculation.Spec.Steps))
+				r.updateCalculationPhase(ctx, calculation, getCalculationFinalPhase(calculation.Spec.Steps))
 			}
 		}
 	}
 
+	return nil
+}
+
+type Controller struct {
+	ctx             context.Context
+	logger          *logrus.Entry
+	mgr             manager.Manager
+	client          ctrlruntimeclient.Client
+	stepUpdaterChan chan executor.Result
+	calcErrorChan   chan string
+	hostname        string
+	namespace       string
+}
+
+func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname, namespace string) *Controller {
+	logger := logrus.WithField("controller", "calculations")
+	logger.Level = logrus.DebugLevel
+	controller := &Controller{
+		ctx:             ctx,
+		logger:          logger,
+		client:          mgr.GetClient(),
+		stepUpdaterChan: stepUpdaterChan,
+		calcErrorChan:   calcErrorChan,
+		hostname:        hostname,
+		mgr:             mgr,
+		namespace:       namespace,
+	}
+
+	if err := AddToManager(ctx, mgr, namespace, hostname, executeChan); err != nil {
+		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
+	}
+
+	return controller
+}
+
+func (c *Controller) Run(stopCh <-chan struct{}) error {
+	c.logger.Info("Starting calculation results updater")
+	go c.resultUpdater(stopCh)
+
+	if err := c.mgr.Start(c.ctx); err != nil {
+		logrus.WithError(err).Fatal("Manager ended with error")
+	}
+
+	<-stopCh
 	return nil
 }
 
@@ -176,18 +203,25 @@ func getCalculationFinalPhase(steps []calculationsv1.Step) calculationsv1.Calcul
 	return calculationsv1.CompletedPhase
 }
 
-func (c *Controller) updateCalculationPhase(calc *calculationsv1.Calculation, phase calculationsv1.CalculationPhase) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, calc.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
+func (r *reconciler) updateCalculationPhase(ctx context.Context, calc *calculationsv1.Calculation, phase calculationsv1.CalculationPhase) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		calculation := &v1.Calculation{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: calc.Namespace, Name: calc.Name}, calculation); err != nil {
+			return fmt.Errorf("failed to get the calculation: %w", err)
 		}
-		newCalc.Phase = phase
-		newCalc.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
-		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
+		calculation.Phase = phase
+		calculation.Status.CompletionTime = &metav1.Time{Time: time.Now()}
+
+		r.logger.WithField("calculation", calculation.Name).Info("Updating calculation phase...")
+		if err := r.client.Update(ctx, calculation); err != nil {
+			return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+		}
+		return nil
+	}); err != nil {
 		return err
-	})
+	}
+	return nil
 }
 
 func (c *Controller) resultUpdater(stopCh <-chan struct{}) {
@@ -200,7 +234,7 @@ func (c *Controller) resultUpdater(stopCh <-chan struct{}) {
 			}
 		case <-stopCh:
 			c.logger.Info("Stopping resultUpdater")
-			break
+			return
 		case calcName := <-c.calcErrorChan:
 			if err := c.updateErrorCalculation(calcName); err != nil {
 				c.logger.WithError(err).WithField("calc-name", calcName).Error("Error updating calculation")
@@ -212,30 +246,33 @@ func (c *Controller) resultUpdater(stopCh <-chan struct{}) {
 func (c *Controller) updateErrorCalculation(name string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
-		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return err
+		calculation := &v1.Calculation{}
+		if err := c.client.Get(c.ctx, ctrlruntimeclient.ObjectKey{Namespace: c.namespace, Name: name}, calculation); err != nil {
+			return fmt.Errorf("failed to get the calculation: %w", err)
 		}
 
-		newCalc.Phase = calculationsv1.FailedPhase
+		calculation.Phase = calculationsv1.FailedPhase
+		calculation.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
-		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
-		return err
+		if err := c.client.Update(c.ctx, calculation); err != nil {
+			return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+		}
+		return nil
 	})
 }
 
 func (c *Controller) updateCalculation(r executor.Result) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-		// We need to Get the calculcation again because there is a chance that it will be changed in the cluster.
-		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, r.CalcName, metav1.GetOptions{})
-		if err != nil {
-			return err
+		calculation := &v1.Calculation{}
+		if err := c.client.Get(c.ctx, ctrlruntimeclient.ObjectKey{Namespace: c.namespace, Name: r.CalcName}, calculation); err != nil {
+			return fmt.Errorf("failed to get the calculation: %w", err)
 		}
 
-		newCalc.Spec.Steps[r.Step].Status = r.Status // TODO add the rest of the resutls here
+		calculation.Spec.Steps[r.Step].Status = r.Status // TODO add the rest of the results here
 
-		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
-		return err
+		if err := c.client.Update(c.ctx, calculation); err != nil {
+			return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+		}
+		return nil
 	})
 }
