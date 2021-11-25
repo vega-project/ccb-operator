@@ -14,18 +14,15 @@ const (
 	FailedPhase     CalculationPhase = "Failed"
 )
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:shortName=calc
 // +resource:path=calculation
-// +genclient:noStatus
-// +genclient:nonNamespaced
 
 type Calculation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   CalculationSpec   `json:"spec"`
-	DBKey  string            `json:"dbkey"`
 	Assign string            `json:"assign"`
 	Status CalculationStatus `json:"status"`
 	Phase  CalculationPhase  `json:"phase"`
