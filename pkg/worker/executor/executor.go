@@ -18,7 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 // Executor ...
 type Executor struct {
 	logger                   *logrus.Entry
-	executeChan              chan *calculationsv1.Calculation // Replace it with steps struct
+	executeChan              chan *v1.Calculation // Replace it with steps struct
 	stepUpdaterChan          chan Result
 	calcErrorChan            chan string
 	Status                   string
@@ -45,13 +45,13 @@ type Executor struct {
 type Result struct {
 	CalcName     string
 	Step         int
-	Status       calculationsv1.CalculationPhase
+	Status       v1.CalculationPhase
 	StdoutStderr string
 	CommandError error
 }
 
 // NewExecutor ...
-func NewExecutor(executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan Result, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Executor {
+func NewExecutor(executeChan chan *v1.Calculation, calcErrorChan chan string, stepUpdaterChan chan Result, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Executor {
 	return &Executor{
 		executeChan:              executeChan,
 		stepUpdaterChan:          stepUpdaterChan,
@@ -137,7 +137,7 @@ func (e *Executor) Run() {
 
 				}
 
-				var status calculationsv1.CalculationPhase
+				var status v1.CalculationPhase
 				var cmdErr error
 				status = "Completed"
 
@@ -172,6 +172,7 @@ func (e *Executor) Run() {
 				e.stepUpdaterChan <- result
 
 				if status == "Failed" {
+					e.calcErrorChan <- calc.Name
 					break
 				}
 			}
@@ -181,8 +182,8 @@ func (e *Executor) Run() {
 
 func (e *Executor) dumpCommandOutput(calcPath string, step int, data []byte) error {
 	outFile := fmt.Sprintf("step-%d", step)
-	e.logger.WithField("filename", outFile).Info("Dumping command output to a file")
-	if err := ioutil.WriteFile(outFile, data, 0777); err != nil {
+	e.logger.WithField("filename", outFile).WithField("path", calcPath).Info("Dumping command output to a file")
+	if err := ioutil.WriteFile(outFile, data, 0755); err != nil {
 		return fmt.Errorf("couldn't generate the command output file: %v", err)
 	}
 	return nil
@@ -241,10 +242,10 @@ type execution struct {
 type step struct {
 	command string
 	args    []string
-	status  calculationsv1.CalculationPhase
+	status  v1.CalculationPhase
 }
 
-func createExecution(calcName string, steps []calculationsv1.Step) *execution {
+func createExecution(calcName string, steps []v1.Step) *execution {
 	execution := &execution{
 		calculationName: calcName,
 	}
@@ -267,7 +268,7 @@ func setUnlimitStack() error {
 	rLimit.Cur = 18446744073709551615
 
 	if err := unix.Setrlimit(unix.RLIMIT_STACK, &rLimit); err != nil {
-		return fmt.Errorf("Error Setting Rlimit %v", err)
+		return fmt.Errorf("error Setting Rlimit %v", err)
 	}
 	return nil
 }

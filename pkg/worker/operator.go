@@ -3,45 +3,60 @@ package worker
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"k8s.io/apimachinery/pkg/util/runtime"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	clientset "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculationscheme "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/scheme"
-	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
 type Operator struct {
 	ctx                      context.Context
 	logger                   *logrus.Logger
+	cfg                      *rest.Config
 	kubeclientset            kubernetes.Interface
 	vegaclientset            clientset.Interface
-	informer                 informers.SharedInformerFactory
 	calculationsController   *Controller
 	executor                 *executor.Executor
 	hostname                 string
+	namespace                string
 	nfsPath                  string
 	atlasControlFiles        string
 	atlasDataFiles           string
 	kuruzModelTemplateFile   string
 	synspecInputTemplateFile string
+	dryRun                   bool
 }
 
-func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, vegaclientset clientset.Interface, hostname, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Operator {
+func NewMainOperator(
+	ctx context.Context,
+	kubeclientset kubernetes.Interface,
+	vegaclientset clientset.Interface,
+	hostname,
+	namespace,
+	nfsPath,
+	atlasControlFiles,
+	atlasDataFiles,
+	kuruzModelTemplateFile,
+	synspecInputTemplateFile string,
+	cfg *rest.Config,
+	dryRun bool) *Operator {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	return &Operator{
 		ctx:                      ctx,
 		logger:                   logger,
+		cfg:                      cfg,
+		dryRun:                   dryRun,
 		hostname:                 hostname,
+		namespace:                namespace,
 		kubeclientset:            kubeclientset,
 		vegaclientset:            vegaclientset,
 		nfsPath:                  nfsPath,
@@ -53,9 +68,6 @@ func NewMainOperator(ctx context.Context, kubeclientset kubernetes.Interface, ve
 }
 
 func (op *Operator) Initialize() {
-	op.informer = informers.NewSharedInformerFactory(op.vegaclientset, 30*time.Second)
-	runtime.Must(calculationscheme.AddToScheme(scheme.Scheme))
-
 	executeChan := make(chan *calculationsv1.Calculation)
 	stepUpdaterChan := make(chan executor.Result)
 	calcErrorChan := make(chan string)
@@ -63,12 +75,18 @@ func (op *Operator) Initialize() {
 	op.executor = executor.NewExecutor(executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
 		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile)
 
-	op.calculationsController = NewController(op.ctx, op.vegaclientset, op.informer.Vega().V1().Calculations(), executeChan, calcErrorChan, stepUpdaterChan, op.hostname)
+	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
+		DryRunClient: op.dryRun,
+		Logger:       ctrlruntimelog.NullLogger{},
+	})
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to construct manager")
+	}
+
+	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.namespace)
 }
 
 func (op *Operator) Run(stopCh <-chan struct{}) error {
-	op.informer.Start(stopCh)
-
 	var err error
 	// TODO pass waitgroup
 	go func() { err = op.calculationsController.Run(stopCh) }()
