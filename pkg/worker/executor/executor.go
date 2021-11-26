@@ -86,7 +86,7 @@ func (e *Executor) Run() {
 			// deleted. Make sure that this won't race with the result-collector
 			calcPath := filepath.Join(e.nfsPath, calc.Name)
 			if _, err := os.Stat(calcPath); err != nil {
-				if err := os.MkdirAll(calcPath, os.ModePerm); err != nil {
+				if err := os.MkdirAll(calcPath, 0777); err != nil {
 					e.logger.WithError(err).Error("couln't create directory. Aborting...")
 					e.calcErrorChan <- calc.Name
 					break
