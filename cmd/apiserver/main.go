@@ -19,6 +19,7 @@ type options struct {
 	dryRun     bool
 	port       int
 	resultsDir string
+	namespace  string
 
 	simulator simulator
 }
@@ -30,6 +31,7 @@ func gatherOptions() options {
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
 	fs.StringVar(&o.resultsDir, "calculation-results-dir", "", "Path were the results of the calculations exist.")
+	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
 	o.simulator.bind(fs)
 
 	fs.Parse(os.Args[1:])
@@ -67,6 +69,7 @@ func main() {
 		ctx:         ctx,
 		client:      c,
 		resultsPath: o.resultsDir,
+		namespace:   o.namespace,
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
