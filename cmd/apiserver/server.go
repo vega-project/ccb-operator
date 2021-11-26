@@ -14,16 +14,24 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	v1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
-	"github.com/vega-project/ccb-operator/pkg/util"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
+)
+
+var (
+	calcIndexer ctrlruntimeclient.FieldIndexer
 )
 
 type server struct {
 	logger      *logrus.Entry
+	namespace   string
 	ctx         context.Context
-	client      v1.VegaV1Interface
+	client      ctrlruntimeclient.Client
 	resultsPath string
 }
 
@@ -63,13 +71,11 @@ func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
 	calculation := util.NewCalculation(t, l)
 	calculation.Labels = map[string]string{"created_by_human": "true"}
 
-	c, err := s.client.Calculations().Create(s.ctx, calculation, metav1.CreateOptions{})
-	if err != nil {
+	if err := s.client.Create(s.ctx, calculation); err != nil {
 		responseError(w, "couldn't create calculation", err)
 	} else {
-		json.NewEncoder(w).Encode(c)
+		json.NewEncoder(w).Encode(calculation)
 	}
-
 }
 
 func (s *server) deleteCalculation(w http.ResponseWriter, r *http.Request) {
@@ -81,8 +87,14 @@ func (s *server) deleteCalculation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	calcID := mux.Vars(r)["id"]
-	err := s.client.Calculations().Delete(s.ctx, calcID, metav1.DeleteOptions{})
+
+	calc := &v1.Calculation{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcID}, calc)
 	if err != nil {
+		responseError(w, fmt.Sprintf("failed to get calculation %s", calcID), err)
+	}
+
+	if err := s.client.Delete(s.ctx, calc); err != nil {
 		responseError(w, "couldn't delete calculation", err)
 	} else {
 		json.NewEncoder(w).Encode(response(fmt.Sprintf("calculation %q has been deleted", calcID), http.StatusOK))
@@ -100,8 +112,8 @@ func (s *server) getCalculations(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.WithFields(logrus.Fields{"host": r.Host, "url": r.URL, "method": r.Method, "user-agent": r.UserAgent()}).Info("getting calculations")
 
-	calcList, err := s.client.Calculations().List(s.ctx, metav1.ListOptions{})
-	if err != nil {
+	var calcList v1.CalculationList
+	if err := s.client.List(s.ctx, &calcList); err != nil {
 		responseError(w, "couldn't get calculations list", err)
 	} else {
 		json.NewEncoder(w).Encode(calcList)
@@ -118,9 +130,11 @@ func (s *server) getCalculationByName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
 	calcID := mux.Vars(r)["id"]
-	calc, err := s.client.Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
+
+	calc := &v1.Calculation{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcID}, calc)
 	if err != nil {
-		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcID), err)
+		responseError(w, fmt.Sprintf("failed to get calculation %s", calcID), err)
 	} else {
 		json.NewEncoder(w).Encode(calc)
 	}
@@ -139,24 +153,21 @@ func (s *server) getCalculation(w http.ResponseWriter, r *http.Request) {
 	teff := r.Form.Get("teff")
 	logG := r.Form.Get("logG")
 
-	t, err := strconv.ParseFloat(teff, 64)
-	if err != nil {
-		responseError(w, "couldn't parse teff as a float number", err)
-		return
-	}
+	t, _ := strconv.ParseFloat(teff, 64)
+	l, _ := strconv.ParseFloat(logG, 64)
 
-	l, err := strconv.ParseFloat(logG, 64)
-	if err != nil {
-		responseError(w, "couldn't parse logG as a float number", err)
-		return
-	}
-
-	calcName := util.GetCalculationName(t, l)
-	calc, err := s.client.Calculations().Get(s.ctx, calcName, metav1.GetOptions{})
-	if err != nil {
-		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcName), err)
+	// TODO: implement a cache and list from there with MatchingFields
+	var calcList v1.CalculationList
+	if err := s.client.List(s.ctx, &calcList); err != nil {
+		responseError(w, fmt.Sprintf("failed to get calculation with teff: %s and logG: %s", teff, logG), err)
 	} else {
-		json.NewEncoder(w).Encode(calc)
+		var calcs []v1.Calculation
+		for _, calc := range calcList.Items {
+			if calc.Spec.Teff == t && calc.Spec.LogG == l {
+				calcs = append(calcs, calc)
+			}
+		}
+		json.NewEncoder(w).Encode(calcs)
 	}
 }
 
@@ -227,11 +238,13 @@ func (s *server) getCalculationResultsByID(w http.ResponseWriter, r *http.Reques
 
 	calcID := mux.Vars(r)["id"]
 
-	calc, err := s.client.Calculations().Get(s.ctx, calcID, metav1.GetOptions{})
+	calc := &v1.Calculation{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcID}, calc)
 	if err != nil {
 		responseError(w, fmt.Sprintf("couldn't get calculation %s", calcID), err)
 		return
 	}
+
 	s.sendResults(w, calc.Spec.Teff, calc.Spec.LogG)
 }
 
