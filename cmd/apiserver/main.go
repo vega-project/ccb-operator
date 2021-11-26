@@ -10,9 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	"github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/fake"
-	v1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -31,9 +30,9 @@ func gatherOptions() options {
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
 	fs.StringVar(&o.resultsDir, "calculation-results-dir", "", "Path were the results of the calculations exist.")
+	o.simulator.bind(fs)
 
 	fs.Parse(os.Args[1:])
-	o.simulator.Bind(fs)
 	return o
 }
 
@@ -45,26 +44,22 @@ func main() {
 
 	clusterConfig, err := util.LoadClusterConfig()
 	if err != nil {
-		logrus.WithError(err).Error("could not load cluster clusterConfig")
+		logrus.WithError(err).Fatal("could not load cluster clusterConfig")
 	}
 
-	var c v1.VegaV1Interface
-
+	var c ctrlruntimeclient.Client
 	if o.dryRun {
-		o.simulator.ctx = ctx
 		logrus.Info("Running on dry mode...")
-		fakecs := fake.NewSimpleClientset()
-		o.simulator.fakeClient = fakecs.VegaV1()
+		o.simulator.initialize(ctx)
 		if err := o.simulator.startDryRun(); err != nil {
 			logrus.WithError(err).Fatal("error while running in dry mode")
 		}
-		c = fakecs.VegaV1()
+		c = o.simulator.fakeClient
 	} else {
-		vegaClient, err := client.NewForConfig(clusterConfig)
+		c, err = ctrlruntimeclient.New(clusterConfig, ctrlruntimeclient.Options{})
 		if err != nil {
-			logrus.WithError(err).Error("could not create client")
+			logrus.WithError(err).Fatal("failed to create client")
 		}
-		c = vegaClient.VegaV1()
 	}
 
 	s := server{
