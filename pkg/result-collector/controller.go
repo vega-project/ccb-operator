@@ -6,22 +6,23 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/client-go/util/workqueue"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	calculationsclient "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions/calculations/v1"
-	listers "github.com/vega-project/ccb-operator/pkg/client/listers/calculations/v1"
+	"k8s.io/apimachinery/pkg/types"
+
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -29,157 +30,146 @@ const (
 	controllerName = "result-collector"
 )
 
-type Controller struct {
-	ctx context.Context
-
-	calculationLister    listers.CalculationLister
-	calculationClientSet calculationsclient.Interface
-	calculationsSynced   cache.InformerSynced
-	taskQueue            *util.TaskQueue
-
-	calculationsDir string
-	resultsDir      string
-
-	logger *logrus.Entry
-}
-
-func NewController(ctx context.Context, calculationClientSet calculationsclient.Interface, calculationInformer informers.CalculationInformer, calculationsDir, resultsDir string) *Controller {
-	logger := logrus.WithField("controller", "calculations")
-	logger.Level = logrus.DebugLevel
-	controller := &Controller{
-		ctx:                  ctx,
-		calculationLister:    calculationInformer.Lister(),
-		calculationsSynced:   calculationInformer.Informer().HasSynced,
-		calculationClientSet: calculationClientSet,
-		logger:               logger,
-		calculationsDir:      calculationsDir,
-		resultsDir:           resultsDir,
-	}
-
-	controller.taskQueue = util.NewTaskQueue(
-		workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Calculations"),
-		controller.syncHandler, controllerName, logger)
-
-	logger.Info("Setting up the Calculations event handlers")
-	calculationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			mObj := obj.(*calculationsv1.Calculation)
-			controller.taskQueue.Enqueue(mObj)
-		},
-		UpdateFunc: func(old, changed interface{}) {
-			controller.taskQueue.Enqueue(changed)
-		},
-		DeleteFunc: func(obj interface{}) {
-			calc := obj.(*calculationsv1.Calculation)
-			controller.logger.WithField("calculation", calc.Name).Warn("Deleted")
+func AddToManager(ctx context.Context, mgr manager.Manager, ns string, calculationsDir, resultsDir string) error {
+	c, err := controller.New(controllerName, mgr, controller.Options{
+		MaxConcurrentReconciles: 1,
+		Reconciler: &reconciler{
+			logger:          logrus.WithField("controller", controllerName),
+			client:          mgr.GetClient(),
+			namespace:       ns,
+			calculationsDir: calculationsDir,
+			resultsDir:      resultsDir,
 		},
 	})
-
-	return controller
-}
-
-// Run will set up the event handlers for types we are interested in, as well
-// as syncing informer caches and starting workers. It will block until stopCh
-// is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
-func (c *Controller) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
-	defer c.taskQueue.Workqueue.ShutDown()
-
-	// Start the informer factories to begin populating the informer caches
-	c.logger.Info("Starting Calculations controller")
-
-	// Wait for the caches to be synced before starting workers
-	c.logger.Info("Waiting for calculations informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.calculationsSynced); !ok {
-		return fmt.Errorf("failed to wait for caches to sync")
+	if err != nil {
+		return fmt.Errorf("failed to construct controller: %w", err)
 	}
 
-	c.logger.Info("Starting calculation worker")
-	go wait.Until(c.taskQueue.RunWorker, time.Second, stopCh)
-	c.logger.Info("Started calculation worker")
+	predicateFuncs := predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 
-	<-stopCh
+	if err := c.Watch(source.NewKindWithCache(&v1.Calculation{}, mgr.GetCache()), calculationHandler(), predicateFuncs); err != nil {
+		return fmt.Errorf("failed to create watch for Calculations: %w", err)
+	}
+
 	return nil
 }
 
-func (c *Controller) syncHandler(key string) error {
-	// Convert the namespace/name string into a distinct namespace and name
-	_, name, err := cache.SplitMetaNamespaceKey(key)
+func calculationHandler() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
+		calc, ok := o.(*v1.Calculation)
+		if !ok {
+			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a Calculation")
+			return nil
+		}
+
+		return []reconcile.Request{
+			{NamespacedName: types.NamespacedName{Namespace: calc.Namespace, Name: calc.Name}},
+		}
+	})
+}
+
+type reconciler struct {
+	logger          *logrus.Entry
+	client          ctrlruntimeclient.Client
+	calculationsDir string
+	resultsDir      string
+	namespace       string
+}
+
+func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	logger := r.logger.WithField("request", req.String())
+	err := r.reconcile(ctx, req, logger)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		logger.WithError(err).Error("Reconciliation failed")
+	} else {
+		logger.Info("Finished reconciliation")
+	}
+	return reconcile.Result{}, err
+}
+
+func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logger *logrus.Entry) error {
+	logger.Info("Starting reconciliation")
+
+	calculation := &v1.Calculation{}
+	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calculation)
+	if err != nil {
+		return fmt.Errorf("failed to get pod: %s in namespace %s: %w", req.Name, req.Namespace, err)
+	}
+
+	if !isCompletedCalculation(calculation.Phase) {
 		return nil
 	}
 
-	// Get the calculation resource with this namespace/name
-	calculation, err := c.calculationLister.Get(name)
-	if err != nil {
-		return err
-	}
+	logger = logger.WithField("calculation", calculation.Name)
+	resultPath := filepath.Join(r.resultsDir, fmt.Sprintf("%.1f___%.2f", calculation.Spec.Teff, calculation.Spec.LogG))
 
-	if isCompletedCalculation(calculation.Phase) {
-		logger := c.logger.WithField("calculation", calculation.Name)
-		resultPath := filepath.Join(c.resultsDir, fmt.Sprintf("%.1f___%.2f", calculation.Spec.Teff, calculation.Spec.LogG))
+	if _, err := os.Stat(resultPath); os.IsNotExist(err) {
+		logger.Info("Creating folder with results")
+		if err := os.MkdirAll(resultPath, os.ModePerm); err != nil {
+			return fmt.Errorf("couldn't create result's folder %v", err)
+		}
 
-		if _, err := os.Stat(resultPath); os.IsNotExist(err) {
-			logger.Info("Creating folder with results")
-			if err := os.MkdirAll(resultPath, os.ModePerm); err != nil {
-				return fmt.Errorf("couldn't create result's folder %v", err)
+		calcPath := filepath.Join(r.calculationsDir, calculation.Name)
+
+		resultsCopied := true
+		logger.Info("Copying fort-8 result file.")
+		if _, err := copy(filepath.Join(calcPath, "fort.8"), filepath.Join(resultPath, "fort.8")); err != nil {
+			logger.WithError(err).Error("error while copying file")
+			resultsCopied = false
+		}
+
+		logger.Info("Copying fort-7 result file.")
+		if _, err := copy(filepath.Join(calcPath, "fort.7"), filepath.Join(resultPath, "fort.7")); err != nil {
+			logger.WithError(err).Error("error while copying file")
+			resultsCopied = false
+		}
+
+		if resultsCopied {
+			logger.Warn("Deleting calculation folder")
+			// Remove calculation folder
+			if err := os.RemoveAll(calcPath); err != nil {
+				r.logger.WithError(err).Error("couldn't remove calculation folder")
+				return fmt.Errorf("%v", err)
 			}
 
-			calcPath := filepath.Join(c.calculationsDir, calculation.Name)
-
-			resultsCopied := true
-			logger.Info("Copying fort-8 result file.")
-			if _, err := copy(filepath.Join(calcPath, "fort.8"), filepath.Join(resultPath, "fort.8")); err != nil {
-				logger.WithError(err).Error("error while copying file")
-				resultsCopied = false
-			}
-
-			logger.Info("Copying fort-7 result file.")
-			if _, err := copy(filepath.Join(calcPath, "fort.7"), filepath.Join(resultPath, "fort.7")); err != nil {
-				logger.WithError(err).Error("error while copying file")
-				resultsCopied = false
-			}
-
-			if resultsCopied {
-				logger.Warn("Deleting calculation folder")
-				// Remove calculation folder
-				if err := os.RemoveAll(calcPath); err != nil {
-					c.logger.WithError(err).Error("couldn't remove calculation folder")
-					return fmt.Errorf("%v", err)
-				}
-
-				labels := map[string]string{util.ResultsCollected: "true"}
-				if err := c.updateCalculationLabels(calculation.Name, labels); err != nil {
-					c.logger.WithError(err).Error("couldn't update calculation labels")
-					return fmt.Errorf("%v", err)
-				}
+			labels := map[string]string{util.ResultsCollected: "true"}
+			if err := r.updateCalculationLabels(ctx, calculation.Name, labels); err != nil {
+				r.logger.WithError(err).Error("couldn't update calculation labels")
+				return fmt.Errorf("%v", err)
 			}
 		}
+
 	}
 	return nil
 }
 
-func (c *Controller) updateCalculationLabels(calcName string, labels map[string]string) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
-		// We need to Get the calculcation again because there is a chance that it will be changed in the cluster.
-		newCalc, err := c.calculationClientSet.VegaV1().Calculations().Get(c.ctx, calcName, metav1.GetOptions{})
-		if err != nil {
-			return err
+func (r *reconciler) updateCalculationLabels(ctx context.Context, calcName string, labels map[string]string) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		calculation := &v1.Calculation{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: calcName}, calculation); err != nil {
+			return fmt.Errorf("failed to get the calculation: %w", err)
 		}
 
-		if labels != nil && newCalc.Labels == nil {
-			newCalc.Labels = make(map[string]string)
+		if labels != nil && calculation.Labels == nil {
+			calculation.Labels = make(map[string]string)
 		}
 		for k, v := range labels {
-			newCalc.Labels[k] = v
+			calculation.Labels[k] = v
 		}
 
-		_, err = c.calculationClientSet.VegaV1().Calculations().Update(c.ctx, newCalc, metav1.UpdateOptions{})
+		if err := r.client.Update(ctx, calculation); err != nil {
+			return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+		}
+		return nil
+	}); err != nil {
 		return err
-	})
+	}
+	return nil
 }
 
 func copy(src, dst string) (int64, error) {
@@ -207,6 +197,6 @@ func copy(src, dst string) (int64, error) {
 	return nBytes, err
 }
 
-func isCompletedCalculation(phase calculationsv1.CalculationPhase) bool {
-	return phase == calculationsv1.CompletedPhase
+func isCompletedCalculation(phase v1.CalculationPhase) bool {
+	return phase == v1.CompletedPhase
 }
