@@ -9,10 +9,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"k8s.io/client-go/kubernetes"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
 	"github.com/vega-project/ccb-operator/pkg/util"
 	"github.com/vega-project/ccb-operator/pkg/worker"
 )
@@ -86,16 +84,6 @@ func main() {
 		logger.WithError(err).Error("could not load cluster clusterConfig")
 	}
 
-	vegaClient, err := client.NewForConfig(clusterConfig)
-	if err != nil {
-		logger.WithError(err).Error("could not create client")
-	}
-
-	kubeclient, err := kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		logger.Fatalf("Failed to build Kubernetes client: %s", err.Error())
-	}
-
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
@@ -108,7 +96,7 @@ func main() {
 
 	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, kubeclient, vegaClient, hostname, o.namespace, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
+	op := worker.NewMainOperator(ctx, hostname, o.namespace, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
 
 	// Initialize operator
 	op.Initialize()
