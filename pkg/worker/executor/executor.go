@@ -181,9 +181,9 @@ func (e *Executor) Run() {
 }
 
 func (e *Executor) dumpCommandOutput(calcPath string, step int, data []byte) error {
-	outFile := fmt.Sprintf("step-%d", step)
+	outFile := filepath.Join(calcPath, fmt.Sprintf("step-%d", step))
 	e.logger.WithField("filename", outFile).WithField("path", calcPath).Info("Dumping command output to a file")
-	if err := ioutil.WriteFile(outFile, data, 0755); err != nil {
+	if err := ioutil.WriteFile(outFile, data, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the command output file: %v", err)
 	}
 	return nil
