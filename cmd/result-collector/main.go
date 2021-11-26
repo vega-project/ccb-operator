@@ -1,18 +1,16 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
-	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	informers "github.com/vega-project/ccb-operator/pkg/client/informers/externalversions"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	resultcollector "github.com/vega-project/ccb-operator/pkg/result-collector"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -20,6 +18,8 @@ import (
 type options struct {
 	calculationsDir string
 	resultsDir      string
+	namespace       string
+	dryRun          bool
 }
 
 func gatherOptions() options {
@@ -28,6 +28,8 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.calculationsDir, "calculations-dir", "", "The directory that contains the calculations.")
 	fs.StringVar(&o.resultsDir, "results-dir", "", "Path were the results will be exported.")
+	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
+	fs.BoolVar(&o.dryRun, "dry-run", true, "Whether to mutate objects in the cluster")
 
 	fs.Parse(os.Args[1:])
 	return o
@@ -48,7 +50,6 @@ func main() {
 	logger := logrus.New()
 
 	o := gatherOptions()
-
 	if err := validateOptions(o); err != nil {
 		logger.WithError(err).Error("Invalid configuration")
 		os.Exit(1)
@@ -58,37 +59,24 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Error("could not load cluster clusterConfig")
 	}
-
-	vegaClient, err := client.NewForConfig(clusterConfig)
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{
+		DryRunClient: o.dryRun,
+		Logger:       ctrlruntimelog.NullLogger{},
+	})
 	if err != nil {
-		logger.WithError(err).Error("could not create client")
+		logrus.WithError(err).Fatal("failed to construct manager")
 	}
 
-	informer := informers.NewSharedInformerFactory(vegaClient, 30*time.Second)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	controller := resultcollector.NewController(ctx, vegaClient, informer.Vega().V1().Calculations(), o.calculationsDir, o.resultsDir)
-
-	stopCh := make(chan struct{})
-	defer close(stopCh)
-
-	informer.Start(stopCh)
-
-	go func() { err = controller.Run(stopCh) }()
-	if err != nil {
-		logger.WithError(err).Errorf("failed to run Calculations controller")
+	if err := v1.AddToScheme(mgr.GetScheme()); err != nil {
+		logrus.WithError(err).Fatal("Failed to add calculationv1 to scheme")
 	}
 
-	sigTerm := make(chan os.Signal, 1)
-	signal.Notify(sigTerm, syscall.SIGTERM)
-	signal.Notify(sigTerm, syscall.SIGINT)
-	for {
-		select {
-		case <-sigTerm:
-			logger.Infof("Shutdown signal received, exiting...")
-			close(stopCh)
-			os.Exit(0)
-		}
+	ctx := controllerruntime.SetupSignalHandler()
+	if err := resultcollector.AddToManager(ctx, mgr, o.namespace, o.calculationsDir, o.resultsDir); err != nil {
+		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
+	}
+
+	if err := mgr.Start(ctx); err != nil {
+		logrus.WithError(err).Fatal("Manager ended with error")
 	}
 }
