@@ -31,9 +31,8 @@ func NewCalculation(teff, logG float64) *v1.Calculation {
 		},
 	}
 
-	calcName := fmt.Sprintf("calc-%s", InputHash([]byte(fmt.Sprintf("%f", teff)), []byte(fmt.Sprintf("%f", logG))))
+	calcName := GetCalculationName(teff, logG)
 	calculation := &v1.Calculation{
-		TypeMeta:   metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: calcName},
 		Phase:      v1.CreatedPhase,
 		Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},

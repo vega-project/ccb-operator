@@ -12,12 +12,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	client "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/typed/calculations/v1"
-
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -48,10 +46,10 @@ func (o *options) validate() error {
 }
 
 type controller struct {
-	ctx           context.Context
-	calcInterface calculationsv1.VegaV1Interface
-	retention     time.Duration
-	logger        *logrus.Entry
+	ctx       context.Context
+	client    ctrlruntimeclient.Client
+	retention time.Duration
+	logger    *logrus.Entry
 }
 
 func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) error {
@@ -74,21 +72,24 @@ func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) error {
 			return nil
 		case <-runChan:
 			start := time.Now()
-			c.clean()
+			if err := c.clean(); err != nil {
+				c.logger.WithError(err).Error("Errors occurred while cleaning the calculations")
+			}
+
 			c.logger.Infof("Sync time: %v", time.Since(start))
 		}
 	}
 }
 
-func (c *controller) clean() {
-	calculations, err := c.calcInterface.Calculations().List(c.ctx, metav1.ListOptions{})
-	if err != nil {
-		c.logger.WithError(err).Error("Error listing calculations.")
-		return
+func (c *controller) clean() error {
+	var calculations v1.CalculationList
+	if err := c.client.List(c.ctx, &calculations); err != nil {
+		return fmt.Errorf("couldn't list calculations")
 	}
 
+	var errs []error
 	for _, calc := range calculations.Items {
-		calcLogger := c.logger.WithField("calculation", calc.Name)
+		logger := c.logger.WithField("calculation", calc.Name)
 		if calc.Phase != v1.CompletedPhase {
 			continue
 		}
@@ -98,21 +99,21 @@ func (c *controller) clean() {
 		}
 
 		if _, ok := calc.Labels[util.ResultsCollected]; !ok {
-			calcLogger.Warn("calculation passed retention but results are not collected. Skipping...")
 			continue
 		}
 
-		if err := c.calcInterface.Calculations().Delete(c.ctx, calc.Name, metav1.DeleteOptions{}); err != nil {
-			calcLogger.WithError(err).Error("Error deleting calculation")
+		if err := c.client.Delete(c.ctx, &calc); err != nil {
+			errs = append(errs, fmt.Errorf("couldn't delete calculation %s: %w", calc.Name, err))
 			continue
 		}
 
-		calcLogger.Info("Deleted calculation")
+		logger.Info("Calculation deleted...")
 	}
+	return utilerrors.NewAggregate(errs)
 }
 
 func main() {
-	logger := logrus.New()
+	logger := logrus.WithField("component", "janitor")
 	o := gatherOptions()
 	if err := o.validate(); err != nil {
 		logger.WithError(err).Fatal("validation error")
@@ -123,18 +124,17 @@ func main() {
 		logger.WithError(err).Fatal("could not load cluster clusterConfig")
 	}
 
-	calcClient, err := client.NewForConfig(clusterConfig)
+	client, err := ctrlruntimeclient.New(clusterConfig, ctrlruntimeclient.Options{})
 	if err != nil {
-		logger.WithError(err).Fatal("could not create calculation client")
+		logrus.WithError(err).Fatal("failed to create client")
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := controller{
-		ctx:           ctx,
-		logger:        logrus.NewEntry(logrus.StandardLogger()),
-		retention:     o.retention,
-		calcInterface: calcClient.VegaV1(),
+		ctx:       ctx,
+		logger:    logger,
+		retention: o.retention,
+		client:    client,
 	}
 
 	stopCh := make(chan struct{})

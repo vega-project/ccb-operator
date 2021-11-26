@@ -9,11 +9,9 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	clientset "github.com/vega-project/ccb-operator/pkg/client/clientset/versioned"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
@@ -21,8 +19,6 @@ type Operator struct {
 	ctx                      context.Context
 	logger                   *logrus.Logger
 	cfg                      *rest.Config
-	kubeclientset            kubernetes.Interface
-	vegaclientset            clientset.Interface
 	calculationsController   *Controller
 	executor                 *executor.Executor
 	hostname                 string
@@ -37,8 +33,6 @@ type Operator struct {
 
 func NewMainOperator(
 	ctx context.Context,
-	kubeclientset kubernetes.Interface,
-	vegaclientset clientset.Interface,
 	hostname,
 	namespace,
 	nfsPath,
@@ -57,8 +51,6 @@ func NewMainOperator(
 		dryRun:                   dryRun,
 		hostname:                 hostname,
 		namespace:                namespace,
-		kubeclientset:            kubeclientset,
-		vegaclientset:            vegaclientset,
 		nfsPath:                  nfsPath,
 		atlasControlFiles:        atlasControlFiles,
 		atlasDataFiles:           atlasDataFiles,

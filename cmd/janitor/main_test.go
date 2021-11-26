@@ -2,35 +2,45 @@ package main
 
 import (
 	"context"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	cmpopts "github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 
-	clientgoTesting "k8s.io/client-go/testing"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+	fakectrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	"github.com/vega-project/ccb-operator/pkg/client/clientset/versioned/fake"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 func TestClean(t *testing.T) {
-	var ctx context.Context
-
 	testCases := []struct {
-		id              string
-		calculations    []*v1.Calculation
-		deletedExpected sets.String
+		id           string
+		calculations []ctrlruntimeclient.Object
+		expected     []v1.Calculation
 	}{
 		{
 			id: "no calculation expired, no delete expected",
-			calculations: []*v1.Calculation{
+			calculations: []ctrlruntimeclient.Object{
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-1"},
+					Phase:      v1.CompletedPhase,
+				},
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-2"},
+					Phase:      v1.CompletedPhase,
+				},
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-3"},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
+				},
+			},
+			expected: []v1.Calculation{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-1"},
 					Phase:      v1.CompletedPhase,
@@ -50,7 +60,24 @@ func TestClean(t *testing.T) {
 		},
 		{
 			id: "a calculation expired, delete expected",
-			calculations: []*v1.Calculation{
+			calculations: []ctrlruntimeclient.Object{
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-1"},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
+				},
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-2"},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
+				},
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-3", Labels: map[string]string{util.ResultsCollected: "true"}},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				},
+			},
+			expected: []v1.Calculation{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-1"},
 					Phase:      v1.CompletedPhase,
@@ -61,96 +88,81 @@ func TestClean(t *testing.T) {
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Now()}},
 				},
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-3", Labels: map[string]string{util.ResultsCollected: "true"}},
-					Phase:      v1.CompletedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
-				},
 			},
-			deletedExpected: sets.NewString("calc-3"),
 		},
 		{
 			id: "all calculation expired, delete expected",
-			calculations: []*v1.Calculation{
-				{
+			calculations: []ctrlruntimeclient.Object{
+				&v1.Calculation{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-1", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
-				{
+				&v1.Calculation{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-2", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
-				{
+				&v1.Calculation{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-3", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
 			},
-			deletedExpected: sets.NewString("calc-1", "calc-2", "calc-3"),
+			expected: []v1.Calculation{},
 		},
 		{
 			id: "calculations expired but there is one with no results collected, expected to skip the one",
-			calculations: []*v1.Calculation{
-				{
+			calculations: []ctrlruntimeclient.Object{
+				&v1.Calculation{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-1", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
-				{
+				&v1.Calculation{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-2", Labels: map[string]string{util.ResultsCollected: "true"}},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
+				&v1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-3"},
+					Phase:      v1.CompletedPhase,
+					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				},
+			},
+			expected: []v1.Calculation{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-3"},
 					Phase:      v1.CompletedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
 				},
 			},
-			deletedExpected: sets.NewString("calc-1", "calc-2"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.id, func(t *testing.T) {
-			fakecs := fake.NewSimpleClientset()
+			fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.calculations...).Build()
 
-			var actualDeleted []string
-
-			fakecs.Fake.PrependReactor("delete", "calculations", func(action clientgoTesting.Action) (bool, runtime.Object, error) {
-				deleteAction := action.(clientgoTesting.DeleteAction)
-				calcName := deleteAction.GetName()
-
-				actualDeleted = append(actualDeleted, calcName)
-
-				if !tc.deletedExpected.Has(calcName) {
-					t.Fatalf("delete not expected: %s", calcName)
-				}
-				return false, nil, nil
-			})
-			client := fakecs.VegaV1()
 			retention, _ := time.ParseDuration("10m")
-
-			for _, calc := range tc.calculations {
-				if _, err := client.Calculations().Create(ctx, calc, metav1.CreateOptions{}); err != nil {
-					t.Fatalf("couldn't create calculation: %v", calc.Name)
-				}
-			}
-
 			c := controller{
-				logger:        logrus.NewEntry(logrus.StandardLogger()),
-				retention:     retention,
-				calcInterface: client,
+				logger:    logrus.NewEntry(logrus.StandardLogger()),
+				retention: retention,
+				client:    fakeClient,
 			}
 
-			// Running clean
 			c.clean()
 
-			if !reflect.DeepEqual(actualDeleted, tc.deletedExpected.List()) && len(tc.deletedExpected.List()) > 0 {
-				t.Fatalf("Expected to delete %s but %s has been deleted", strings.Join(tc.deletedExpected.List(), ","), strings.Join(actualDeleted, ","))
+			var calculationList v1.CalculationList
+			if err := fakeClient.List(context.Background(), &calculationList); err != nil {
+				t.Fatal(err)
 			}
+			if diff := cmp.Diff(tc.expected, calculationList.Items,
+				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				cmpopts.IgnoreFields(v1.CalculationStatus{}, "StartTime")); diff != "" {
+				t.Fatal(diff)
+			}
+
 		})
 	}
 
