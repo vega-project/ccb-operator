@@ -70,7 +70,7 @@ func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {
 
 	calculation := util.NewCalculation(t, l)
 	calculation.Labels = map[string]string{"created_by_human": "true"}
-
+	calculation.Namespace = s.namespace
 	if err := s.client.Create(s.ctx, calculation); err != nil {
 		responseError(w, "couldn't create calculation", err)
 	} else {
