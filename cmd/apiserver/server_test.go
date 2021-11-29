@@ -321,7 +321,9 @@ func TestDeleteCalculation(t *testing.T) {
 				logrus.Info(rr.Body)
 			}
 
-			if diff := cmp.Diff(tc.expected, calculationList.Items, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" && !tc.errorExpected {
+			if diff := cmp.Diff(tc.expected, calculationList.Items,
+				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" && !tc.errorExpected {
 				t.Fatal(diff)
 			}
 		})
@@ -444,7 +446,6 @@ func TestGetCalculationByName(t *testing.T) {
 				},
 			},
 			expected: v1.Calculation{
-				TypeMeta:   metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("calc-%s", util.InputHash([]byte(fmt.Sprintf("%f", 12100.0)), []byte(fmt.Sprintf("%f", 4.0))))},
 				Phase:      v1.CreatedPhase,
 				Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
@@ -455,7 +456,6 @@ func TestGetCalculationByName(t *testing.T) {
 			id: "get calculation with wrong name",
 			initialCalculation: []ctrlruntimeclient.Object{
 				&v1.Calculation{
-					TypeMeta:   metav1.TypeMeta{Kind: "Calculation", APIVersion: "vega.io/v1"},
 					ObjectMeta: metav1.ObjectMeta{Name: "calc-wrong-name"},
 					Phase:      v1.CreatedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
@@ -498,7 +498,9 @@ func TestGetCalculationByName(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if diff := cmp.Diff(tc.expected, *actualData, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" && !tc.errorExpected {
+		if diff := cmp.Diff(tc.expected, *actualData,
+			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
+			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" && !tc.errorExpected {
 			t.Fatal(diff)
 		}
 	}
