@@ -1,4 +1,4 @@
 // +k8s:deepcopy-gen=package,register
 
-// +groupName=vega.io
+// +groupName=vegaproject.io
 package v1
