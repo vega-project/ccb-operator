@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: calculations.vega.io
+  name: calculations.vegaproject.io
 spec:
-  group: vega.io
+  group: vegaproject.io
   names:
     kind: Calculation
     listKind: CalculationList
