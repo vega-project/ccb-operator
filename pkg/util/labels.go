@@ -1,5 +1,5 @@
 package util
 
 const (
-	ResultsCollected = "vega.io/results-collected"
+	ResultsCollected = "vegaproject.io/results-collected"
 )

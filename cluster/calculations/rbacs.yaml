@@ -19,7 +19,7 @@ items:
     name: calculations-access
   rules:
     - apiGroups:
-        - "vega.io"
+        - "vegaproject.io"
       resources:
         - calculations
       verbs:
