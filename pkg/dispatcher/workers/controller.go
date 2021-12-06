@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workerpool "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
 const (
@@ -140,6 +141,30 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	calcList := &v1.CalculationList{}
 	if err := r.client.List(ctx, calcList, ctrlruntimeclient.MatchingLabels{"assign": req.Name}); err != nil {
 		return fmt.Errorf("couldn't get a list of calculations: %v", err)
+	}
+
+	workerPoolList := &workerpool.WorkerPoolList{}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err = r.client.List(ctx, workerPoolList, ctrlruntimeclient.MatchingLabels{"name": pod.Name})
+		if err != nil && !kerrors.IsNotFound(err) {
+			return fmt.Errorf("could't get a list of workerpools: %v", err)
+		}
+
+		wPool := &workerpool.WorkerPool{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, wPool); err != nil {
+			return fmt.Errorf("couldn't get a workerpool: %v", err)
+		}
+
+		for _, wp := range workerPoolList.Items {
+			wp.State = workerpool.WorkerAvailableState
+			wPool.Spec.Workers[pod.Name] = wp
+			if err := r.client.Update(ctx, wPool); err != nil {
+				return fmt.Errorf("failed to update a workerpool list: %v", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	return nil
