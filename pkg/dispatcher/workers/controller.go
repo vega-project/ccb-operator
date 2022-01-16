@@ -3,13 +3,11 @@ package workers
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -174,52 +172,5 @@ func (r *reconciler) deleteAssignedCalculations(ctx context.Context, assigned st
 			return fmt.Errorf("couldn't delete the calculation: %v", err)
 		}
 	}
-	return nil
-}
-
-func (r *reconciler) assignCalculationToPod(ctx context.Context, podName string) error {
-	humanCalculations := &v1.CalculationList{}
-	if err := r.client.List(ctx, humanCalculations,
-		ctrlruntimeclient.MatchingLabels{"created_by_human": "true"},
-		ctrlruntimeclient.MatchingFields{"phase": "Created"}); err != nil {
-		return fmt.Errorf("couldn't get the list of created_by_human calculations %w", err)
-	}
-
-	var createdPhaseCalculations []v1.Calculation
-	for _, c := range humanCalculations.Items {
-		if c.Phase == v1.CreatedPhase && c.Assign == "" {
-			createdPhaseCalculations = append(createdPhaseCalculations, c)
-		}
-	}
-
-	if len(createdPhaseCalculations) > 0 {
-		// Sorting the calculations by the creation time
-		if len(createdPhaseCalculations) > 1 {
-			sort.Slice(createdPhaseCalculations, func(i, j int) bool {
-				return createdPhaseCalculations[i].Status.StartTime.Before(&createdPhaseCalculations[j].Status.StartTime)
-			})
-		}
-
-		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			calculation := &v1.Calculation{}
-			if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: createdPhaseCalculations[0].Namespace, Name: createdPhaseCalculations[0].Name}, calculation); err != nil {
-				return fmt.Errorf("failed to get the calculation: %w", err)
-			}
-
-			calculation.Assign = podName
-
-			r.logger.WithField("pod", podName).Info("Updating calculation...")
-			if err := r.client.Update(ctx, calculation); err != nil {
-				return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
-
-	} else {
-		// TODO: Assign a calculation from a CalculationBulk
-	}
-
 	return nil
 }

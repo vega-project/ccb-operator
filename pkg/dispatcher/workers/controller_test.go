@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -125,110 +124,5 @@ func TestDeleteAssignedCalculations(t *testing.T) {
 		if diff := cmp.Diff(actualCalculations.Items, tc.expected, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
 			t.Fatal(diff)
 		}
-	}
-}
-
-func TestAssignCalculationToPod(t *testing.T) {
-	testCases := []struct {
-		id                   string
-		podName              string
-		calculations         []ctrlruntimeclient.Object
-		expectedCalculations []v1.Calculation
-	}{
-		{
-			id:      "created by human, single happy case",
-			podName: "test-pod",
-			calculations: []ctrlruntimeclient.Object{
-				&v1.Calculation{
-					Spec: v1.CalculationSpec{
-						Teff: 12000.0,
-						LogG: 4.0,
-					},
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
-				},
-			},
-			expectedCalculations: []v1.Calculation{
-				{
-					Spec: v1.CalculationSpec{
-						Teff: 12000.0,
-						LogG: 4.0,
-					},
-					Assign:     "test-pod",
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
-				},
-			},
-		},
-		{
-			id:      "created by human, multiple happy case",
-			podName: "test-pod",
-			calculations: []ctrlruntimeclient.Object{
-				&v1.Calculation{
-					Spec: v1.CalculationSpec{
-						Teff: 12000.0,
-						LogG: 4.0,
-					},
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
-				},
-				&v1.Calculation{
-					Spec: v1.CalculationSpec{
-						Teff: 13000.0,
-						LogG: 4.0,
-					},
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc-2", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 30, 0, 0, time.UTC)}},
-				},
-			},
-			expectedCalculations: []v1.Calculation{
-				{
-					Spec: v1.CalculationSpec{
-						Teff: 12000.0,
-						LogG: 4.0,
-					},
-					Assign:     "test-pod",
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 20, 0, 0, time.UTC)}},
-				},
-				{
-					Spec: v1.CalculationSpec{
-						Teff: 13000.0,
-						LogG: 4.0,
-					},
-					ObjectMeta: metav1.ObjectMeta{Name: "test-calc-2", Labels: map[string]string{"created_by_human": "true"}},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 15, 30, 0, 0, time.UTC)}},
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.id, func(t *testing.T) {
-			r := &reconciler{
-				logger: logrus.WithField("test-name", tc.id),
-				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.calculations...).Build(),
-			}
-
-			if err := r.assignCalculationToPod(context.Background(), tc.podName); err != nil {
-				t.Fatal(err)
-			}
-
-			actualCalculations := &v1.CalculationList{}
-			if err := r.client.List(context.Background(), actualCalculations); err != nil {
-				t.Fatal(err)
-			}
-			if diff := cmp.Diff(tc.expectedCalculations, actualCalculations.Items,
-				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
-				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
-				t.Fatal(diff)
-			}
-		})
 	}
 }
