@@ -29,7 +29,9 @@ type WorkerPoolSpec struct {
 }
 
 type Worker struct {
+	Name                  string      `json:"name,omitempty"`
 	RegisteredTime        metav1.Time `json:"registeredTime,omitempty"`
+	LastUpdateTime        metav1.Time `json:"lastUpdateTime,omitempty"`
 	CalculationsProcessed int64       `json:"calculationsProcessed,omitempty"`
 	State                 WorkerState `json:"status,omitempty"`
 }
