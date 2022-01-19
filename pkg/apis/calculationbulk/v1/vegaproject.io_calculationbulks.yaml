@@ -30,10 +30,17 @@ spec:
           calculations:
             additionalProperties:
               properties:
-                log_g:
-                  type: number
-                teff:
-                  type: number
+                metadata:
+                  type: object
+                params:
+                  properties:
+                    log_g:
+                      type: number
+                    teff:
+                      type: number
+                  type: object
+                phase:
+                  type: string
               type: object
             type: object
           kind:
@@ -43,8 +50,15 @@ spec:
             type: string
           metadata:
             type: object
-        required:
-        - calculations
+          status:
+            properties:
+              completionTime:
+                format: date-time
+                type: string
+              startTime:
+                format: date-time
+                type: string
+            type: object
         type: object
     served: true
     storage: true
