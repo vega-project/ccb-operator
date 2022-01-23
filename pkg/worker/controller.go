@@ -59,48 +59,6 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 		return fmt.Errorf("failed to create watch for Calculations: %w", err)
 	}
 
-	if err := registerWorkerInPool(ctx, logger, mgr.GetClient(), workerPool, hostname, namespace); err != nil {
-		return fmt.Errorf("couldn't register worker in worker pool: %w", err)
-	}
-
-	return nil
-}
-func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrlruntimeclient.Client, workerPool, hostname, namespace string) error {
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		pool := &workersv1.WorkerPool{}
-		err := client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool)
-		if err != nil {
-			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", workerPool, namespace, err)
-		}
-
-		now := time.Now()
-		if value, exists := pool.Spec.Workers[hostname]; exists {
-			value.LastUpdateTime.Time = now
-			value.State = workersv1.WorkerAvailableState
-			pool.Spec.Workers[hostname] = value
-		} else {
-			if pool.Spec.Workers == nil {
-				pool.Spec.Workers = make(map[string]workersv1.Worker)
-			}
-
-			pool.Spec.Workers[hostname] = workersv1.Worker{
-				Name:                  hostname,
-				RegisteredTime:        &metav1.Time{Time: now},
-				LastUpdateTime:        &metav1.Time{Time: now},
-				CalculationsProcessed: 0,
-				State:                 workersv1.WorkerAvailableState,
-			}
-		}
-
-		logger.Info("Updating WorkerPool...")
-		if err := client.Update(ctx, pool); err != nil {
-			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
 	return nil
 }
 
