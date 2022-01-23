@@ -24,6 +24,7 @@ import (
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
+	"github.com/vega-project/ccb-operator/pkg/worker/workerpools"
 )
 
 const (
@@ -218,6 +219,10 @@ func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *c
 
 	if err := AddToManager(ctx, mgr, namespace, hostname, executeChan, workerPool, namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
+	}
+
+	if err := workerpools.AddToManager(ctx, mgr, namespace, hostname, workerPool, namespace); err != nil {
+		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
 	return controller
