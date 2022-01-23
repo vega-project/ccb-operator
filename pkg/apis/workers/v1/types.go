@@ -11,8 +11,8 @@ type WorkerPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   WorkerPoolSpec   `json:"spec"`
-	Status WorkerPoolStatus `json:"status"`
+	Spec   WorkerPoolSpec   `json:"spec,omitempty"`
+	Status WorkerPoolStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -25,15 +25,15 @@ type WorkerPoolList struct {
 }
 
 type WorkerPoolSpec struct {
-	Workers map[string]Worker `json:"workers"`
+	Workers map[string]Worker `json:"workers,omitempty"`
 }
 
 type Worker struct {
-	Name                  string       `json:"name,omitempty"`
-	RegisteredTime        *metav1.Time `json:"registeredTime,omitempty"`
+	Name                  string       `json:"name"`
+	RegisteredTime        *metav1.Time `json:"registeredTime"`
 	LastUpdateTime        *metav1.Time `json:"lastUpdateTime,omitempty"`
-	CalculationsProcessed int64        `json:"calculationsProcessed,omitempty"`
-	State                 WorkerState  `json:"status,omitempty"`
+	CalculationsProcessed int64        `json:"calculationsProcessed"`
+	State                 WorkerState  `json:"status"`
 }
 
 type WorkerState string
