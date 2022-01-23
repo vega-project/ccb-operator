@@ -20,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
@@ -51,8 +50,8 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 
-	if err := c.Watch(source.NewKindWithCache(&v1.Calculation{}, mgr.GetCache()), workerPoolsHandler(), predicateFuncs); err != nil {
-		return fmt.Errorf("failed to create watch for Calculations: %w", err)
+	if err := c.Watch(source.NewKindWithCache(&workersv1.WorkerPool{}, mgr.GetCache()), workerPoolsHandler(), predicateFuncs); err != nil {
+		return fmt.Errorf("failed to create watch for WorkerPools: %w", err)
 	}
 
 	return nil
@@ -100,7 +99,7 @@ func workerPoolsHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
 		pool, ok := o.(*workersv1.WorkerPool)
 		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a Calculation")
+			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a WorkerPool")
 			return nil
 		}
 
