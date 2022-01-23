@@ -35,6 +35,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodena
 			logger:     logger,
 			client:     mgr.GetClient(),
 			nodename:   nodename,
+			hostname:   hostname,
 			workerPool: workerPool,
 			namespace:  namespace,
 		},
