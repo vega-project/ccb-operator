@@ -31,7 +31,7 @@ const (
 	controllerName = "calculations"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string, executeChan chan *calculationsv1.Calculation, workerPool, namespace string) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodename string, executeChan chan *calculationsv1.Calculation, workerPool, namespace string) error {
 	logger := logrus.WithField("controller", controllerName)
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
@@ -39,6 +39,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 			logger:      logger,
 			client:      mgr.GetClient(),
 			hostname:    hostname,
+			nodename:    nodename,
 			executeChan: executeChan,
 			workerPool:  workerPool,
 			namespace:   namespace,
@@ -82,6 +83,7 @@ type reconciler struct {
 	executeChan chan *calculationsv1.Calculation
 
 	hostname   string
+	nodename   string
 	namespace  string
 	workerPool string
 }
@@ -183,7 +185,7 @@ func NewController(
 		namespace:       namespace,
 	}
 
-	if err := AddToManager(ctx, mgr, namespace, hostname, executeChan, workerPool, namespace); err != nil {
+	if err := AddToManager(ctx, mgr, namespace, hostname, nodename, executeChan, workerPool, namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
 	}
 
@@ -261,7 +263,7 @@ func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, state workers
 		}
 
 		now := time.Now()
-		if value, exists := pool.Spec.Workers[r.hostname]; exists {
+		if value, exists := pool.Spec.Workers[r.nodename]; exists {
 			if value.LastUpdateTime != nil {
 				value.LastUpdateTime.Time = now
 			} else {
