@@ -88,7 +88,7 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 			}
 		}
 
-		logger.Info("Updating WorkerPool...")
+		logger.WithField("pod-name", hostname).WithField("node-name", nodename).Info("Updating WorkerPool...")
 		if err := client.Update(ctx, pool); err != nil {
 			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
 		}
