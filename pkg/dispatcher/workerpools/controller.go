@@ -18,8 +18,10 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -115,7 +117,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 				}
 
 				bulk := calculationBulks.Items[0]
-				for _, calculation := range bulk.Calculations {
+				for name, calculation := range bulk.Calculations {
 					// we assume that if the phase is empty, then the calculation haven't yet been processed.
 					if calculation.Phase == "" {
 						calc := util.NewCalculation(calculation.Params.Teff, calculation.Params.LogG)
@@ -126,11 +128,39 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						}
 						break
 					}
+
+					// Update bulk with the calculation phase
+					if err := r.updateWorkerCalculationBulk(ctx, name, bulk.Name, bulk.Namespace); err != nil {
+						return fmt.Errorf("couldn't update calculation in bulk %s: %w", bulk.Name, err)
+					}
 				}
 				break
 			}
 		}
 	}
+	return nil
+}
+
+func (r *reconciler) updateWorkerCalculationBulk(ctx context.Context, calcName, bulkName, bulkNamespace string) error {
+	bulk := &bulkv1.CalculationBulk{}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: bulkNamespace, Name: bulkName}, bulk); err != nil {
+			return fmt.Errorf("failed to get the calculation: %w", err)
+		}
+
+		calc := bulk.Calculations[calcName]
+		calc.Phase = v1.ProcessingPhase
+		bulk.Calculations[calcName] = calc
+
+		r.logger.WithField("bulk", bulkName).Info("Updating calculation bulk...")
+		if err := r.client.Update(ctx, bulk); err != nil {
+			return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
