@@ -72,6 +72,7 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 				value.LastUpdateTime = &metav1.Time{Time: now}
 			}
 			value.State = workersv1.WorkerAvailableState
+			value.Name = hostname
 			pool.Spec.Workers[nodename] = value
 		} else {
 			if pool.Spec.Workers == nil {
