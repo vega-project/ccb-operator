@@ -244,7 +244,7 @@ func (r *reconciler) updateCalculationPhase(ctx context.Context, calc *calculati
 	return nil
 }
 
-func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, status workersv1.WorkerState) error {
+func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, state workersv1.WorkerState) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &workersv1.WorkerPool{}
 		err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: r.workerPool}, pool)
@@ -254,8 +254,12 @@ func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, status worker
 
 		now := time.Now()
 		if value, exists := pool.Spec.Workers[r.hostname]; exists {
-			value.LastUpdateTime.Time = now
-			value.State = status
+			if value.LastUpdateTime != nil {
+				value.LastUpdateTime.Time = now
+			} else {
+				value.LastUpdateTime = &metav1.Time{Time: now}
+			}
+			value.State = state
 		}
 
 		r.logger.Info("Updating WorkerPool...")
