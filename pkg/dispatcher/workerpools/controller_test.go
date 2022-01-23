@@ -89,9 +89,16 @@ func TestReconcile(t *testing.T) {
 			},
 			expectedCalculations: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x", Namespace: "test-namespace"},
-					Assign:     "worker-1",
-					Phase:      "Created",
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "calc-xc864fxvd5xccn6x",
+						Namespace: "test-namespace",
+						Labels: map[string]string{
+							"vegaproject.io/bulk":            "test-bulk",
+							"vegaproject.io/calculationName": "test-calc",
+						},
+					},
+					Assign: "worker-1",
+					Phase:  "Created",
 					Spec: v1.CalculationSpec{
 						Teff: 10000,
 						LogG: 4,
@@ -127,9 +134,16 @@ func TestReconcile(t *testing.T) {
 			},
 			expectedCalculations: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x", Namespace: "test-namespace"},
-					Assign:     "worker-3",
-					Phase:      "Created",
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "calc-xc864fxvd5xccn6x",
+						Namespace: "test-namespace",
+						Labels: map[string]string{
+							"vegaproject.io/bulk":            "test-bulk",
+							"vegaproject.io/calculationName": "test-calc",
+						},
+					},
+					Assign: "worker-3",
+					Phase:  "Created",
 					Spec: v1.CalculationSpec{
 						Teff: 10000,
 						LogG: 4,
