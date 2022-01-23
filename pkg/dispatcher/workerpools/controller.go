@@ -131,15 +131,17 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						if err := r.client.Create(ctx, calc); err != nil {
 							return fmt.Errorf("couldn't create calculation: %w", err)
 						}
+
+						// Update bulk with the calculation phase
+						if err := r.updateWorkerCalculationBulk(ctx, name, bulk.Name, bulk.Namespace); err != nil {
+							return fmt.Errorf("couldn't update calculation in bulk %s: %w", bulk.Name, err)
+						}
+
+						// We don't want to continue assigning calculations to that worker
 						break
 					}
 
-					// Update bulk with the calculation phase
-					if err := r.updateWorkerCalculationBulk(ctx, name, bulk.Name, bulk.Namespace); err != nil {
-						return fmt.Errorf("couldn't update calculation in bulk %s: %w", bulk.Name, err)
-					}
 				}
-				break
 			}
 		}
 	}
@@ -172,7 +174,8 @@ func (r *reconciler) updateWorkerCalculationBulk(ctx context.Context, calcName, 
 func sortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
 	var ret []workersv1.Worker
 
-	for _, v := range workers {
+	for k, v := range workers {
+		v.Name = k
 		ret = append(ret, v)
 
 	}
