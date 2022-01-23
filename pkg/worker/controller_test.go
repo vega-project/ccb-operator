@@ -112,15 +112,7 @@ func TestRegisterWorkerInPool(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			client := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.workerPool...).Build()
-			op := Operator{
-				ctx:        context.Background(),
-				logger:     logrus.WithField("test-name", tc.name),
-				hostname:   tc.workerName,
-				namespace:  "vega",
-				workerPool: "vega-workers",
-			}
-
-			if err := op.registerWorkerInPool(client); err != nil {
+			if err := registerWorkerInPool(context.Background(), logrus.WithField("test-name", tc.name), client, "vega-workers", tc.workerName, "vega"); err != nil {
 				t.Fatal(err)
 			}
 
