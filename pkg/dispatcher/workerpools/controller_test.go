@@ -89,7 +89,7 @@ func TestReconcile(t *testing.T) {
 			},
 			expectedCalculations: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x", Namespace: "test-namespace"},
 					Assign:     "worker-1",
 					Phase:      "Created",
 					Spec: v1.CalculationSpec{
@@ -127,7 +127,7 @@ func TestReconcile(t *testing.T) {
 			},
 			expectedCalculations: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x"},
+					ObjectMeta: metav1.ObjectMeta{Name: "calc-xc864fxvd5xccn6x", Namespace: "test-namespace"},
 					Assign:     "worker-3",
 					Phase:      "Created",
 					Spec: v1.CalculationSpec{
