@@ -50,10 +50,13 @@ spec:
                       type: string
                     status:
                       type: string
+                  required:
+                  - calculationsProcessed
+                  - name
+                  - registeredTime
+                  - status
                   type: object
                 type: object
-            required:
-            - workers
             type: object
           status:
             properties:
@@ -67,9 +70,6 @@ spec:
                 format: date-time
                 type: string
             type: object
-        required:
-        - spec
-        - status
         type: object
     served: true
     storage: true

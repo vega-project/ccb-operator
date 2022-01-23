@@ -64,23 +64,23 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 		if err != nil {
 			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", workerPool, namespace, err)
 		}
+		if pool.Spec.Workers == nil {
+			pool.Spec.Workers = make(map[string]workersv1.Worker)
+		}
 
 		now := time.Now()
+		worker := workersv1.Worker{}
 		if value, exists := pool.Spec.Workers[nodename]; exists {
-			if value.LastUpdateTime != nil {
-				value.LastUpdateTime.Time = now
+			worker = value
+			if worker.LastUpdateTime != nil {
+				worker.LastUpdateTime.Time = now
 			} else {
-				value.LastUpdateTime = &metav1.Time{Time: now}
+				worker.LastUpdateTime = &metav1.Time{Time: now}
 			}
-			value.State = workersv1.WorkerAvailableState
-			value.Name = hostname
-			pool.Spec.Workers[nodename] = value
+			worker.State = workersv1.WorkerAvailableState
+			worker.Name = hostname
 		} else {
-			if pool.Spec.Workers == nil {
-				pool.Spec.Workers = make(map[string]workersv1.Worker)
-			}
-
-			pool.Spec.Workers[nodename] = workersv1.Worker{
+			worker = workersv1.Worker{
 				Name:                  hostname,
 				RegisteredTime:        &metav1.Time{Time: now},
 				LastUpdateTime:        &metav1.Time{Time: now},
@@ -88,6 +88,7 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 				State:                 workersv1.WorkerAvailableState,
 			}
 		}
+		pool.Spec.Workers[nodename] = worker
 
 		logger.WithField("pod-name", hostname).WithField("node-name", nodename).Info("Updating WorkerPool...")
 		if err := client.Update(ctx, pool); err != nil {
