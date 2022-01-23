@@ -43,7 +43,6 @@ func TestReconcile(t *testing.T) {
 		name                 string
 		workerpools          []ctrlruntimeclient.Object
 		calculationBulks     []ctrlruntimeclient.Object
-		calculations         []ctrlruntimeclient.Object
 		expectedCalculations []v1.Calculation
 	}{
 		{
@@ -160,10 +159,9 @@ func TestReconcile(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runtimeObjectList := append(tc.calculationBulks, append(tc.workerpools, tc.calculations...)...)
 			r := &reconciler{
 				logger: logrus.WithField("test-name", tc.name),
-				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(runtimeObjectList...).Build(),
+				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(append(tc.calculationBulks, tc.workerpools...)...).Build(),
 			}
 			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "test-namespace", Name: "workerpool-test"}}
 			if err := r.reconcile(context.Background(), req, r.logger); err != nil {
