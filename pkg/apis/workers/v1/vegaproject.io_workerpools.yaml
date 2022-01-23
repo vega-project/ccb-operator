@@ -40,6 +40,11 @@ spec:
                     calculationsProcessed:
                       format: int64
                       type: integer
+                    lastUpdateTime:
+                      format: date-time
+                      type: string
+                    name:
+                      type: string
                     registeredTime:
                       format: date-time
                       type: string

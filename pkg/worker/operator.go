@@ -3,26 +3,32 @@ package worker
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
 type Operator struct {
 	ctx                      context.Context
-	logger                   *logrus.Logger
+	logger                   *logrus.Entry
 	cfg                      *rest.Config
 	calculationsController   *Controller
 	executor                 *executor.Executor
 	hostname                 string
 	namespace                string
+	workerPool               string
 	nfsPath                  string
 	atlasControlFiles        string
 	atlasDataFiles           string
@@ -35,6 +41,7 @@ func NewMainOperator(
 	ctx context.Context,
 	hostname,
 	namespace,
+	workerPool,
 	nfsPath,
 	atlasControlFiles,
 	atlasDataFiles,
@@ -42,15 +49,14 @@ func NewMainOperator(
 	synspecInputTemplateFile string,
 	cfg *rest.Config,
 	dryRun bool) *Operator {
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
 	return &Operator{
 		ctx:                      ctx,
-		logger:                   logger,
+		logger:                   logrus.WithField("name", "operator"),
 		cfg:                      cfg,
 		dryRun:                   dryRun,
 		hostname:                 hostname,
 		namespace:                namespace,
+		workerPool:               workerPool,
 		nfsPath:                  nfsPath,
 		atlasControlFiles:        atlasControlFiles,
 		atlasDataFiles:           atlasDataFiles,
@@ -59,7 +65,7 @@ func NewMainOperator(
 	}
 }
 
-func (op *Operator) Initialize() {
+func (op *Operator) Initialize() error {
 	executeChan := make(chan *calculationsv1.Calculation)
 	stepUpdaterChan := make(chan executor.Result)
 	calcErrorChan := make(chan string)
@@ -72,10 +78,53 @@ func (op *Operator) Initialize() {
 		Logger:       ctrlruntimelog.NullLogger{},
 	})
 	if err != nil {
-		logrus.WithError(err).Fatal("failed to construct manager")
+		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
-	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.namespace)
+	if err := op.registerWorkerInPool(mgr.GetClient()); err != nil {
+		return fmt.Errorf("couldn't register worker in worker pool: %w", err)
+	}
+	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.namespace, op.workerPool)
+	return nil
+}
+
+func (op *Operator) registerWorkerInPool(client ctrlruntimeclient.Client) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &workersv1.WorkerPool{}
+		err := client.Get(op.ctx, ctrlruntimeclient.ObjectKey{Namespace: op.namespace, Name: op.workerPool}, pool)
+		if err != nil {
+			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", op.workerPool, op.namespace, err)
+		}
+
+		now := time.Now()
+		if value, exists := pool.Spec.Workers[op.hostname]; exists {
+			value.LastUpdateTime.Time = now
+			value.State = workersv1.WorkerAvailableState
+			pool.Spec.Workers[op.hostname] = value
+		} else {
+			if pool.Spec.Workers == nil {
+				pool.Spec.Workers = make(map[string]workersv1.Worker)
+			}
+
+			pool.Spec.Workers[op.hostname] = workersv1.Worker{
+				Name:                  op.hostname,
+				RegisteredTime:        &metav1.Time{Time: now},
+				LastUpdateTime:        &metav1.Time{Time: now},
+				CalculationsProcessed: 0,
+				State:                 workersv1.WorkerAvailableState,
+			}
+		}
+
+		op.logger.Info("Updating WorkerPool...")
+		if err := client.Update(op.ctx, pool); err != nil {
+			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (op *Operator) Run(stopCh <-chan struct{}) error {

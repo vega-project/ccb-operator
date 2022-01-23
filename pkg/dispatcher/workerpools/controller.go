@@ -143,7 +143,7 @@ func sortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
 
 	}
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].LastUpdateTime.Before(&ret[j].LastUpdateTime)
+		return ret[i].LastUpdateTime.Before(ret[j].LastUpdateTime)
 	})
 	return ret
 }
