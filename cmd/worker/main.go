@@ -22,6 +22,7 @@ type options struct {
 	kuruzModelTemplateFile   string
 	synspecInputTemplateFile string
 	namespace                string
+	workerPool               string
 	dryRun                   bool
 }
 
@@ -36,9 +37,12 @@ func gatherOptions() options {
 	fs.StringVar(&o.kuruzModelTemplateFile, "kuruz-model-template-file", "", "Kuruz model template file.")
 	fs.StringVar(&o.synspecInputTemplateFile, "synspec-input-template-file", "", "Synspec input template file.")
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
+	fs.StringVar(&o.workerPool, "worker-pool", "vega-workers", "The pool where the worker will post the status updates")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "")
 
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logrus.WithError(err).Fatal("couldn't parse options")
+	}
 	return o
 }
 
@@ -81,7 +85,7 @@ func main() {
 
 	clusterConfig, err := util.LoadClusterConfig()
 	if err != nil {
-		logger.WithError(err).Error("could not load cluster clusterConfig")
+		logger.WithError(err).Fatal("could not load cluster clusterConfig")
 	}
 
 	stopCh := make(chan struct{})
@@ -90,19 +94,18 @@ func main() {
 	// Hostname is the same with the pod's name.
 	hostname, err := os.Hostname()
 	if err != nil {
-		logger.WithError(err).Error("couldn't get hostname")
-		os.Exit(1)
+		logger.WithError(err).Fatal("couldn't get hostname")
 	}
 
 	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, hostname, o.namespace, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
-
-	// Initialize operator
-	op.Initialize()
+	op := worker.NewMainOperator(ctx, hostname, o.namespace, o.workerPool, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
+	if err := op.Initialize(); err != nil {
+		logger.WithError(err).Fatal("couldn't initialize operator")
+	}
 
 	if err := op.Run(stopCh); err != nil {
-		logger.Fatalf("Error starting operator: %s", err.Error())
+		logger.WithError(err).Fatal("Error starting operator")
 	}
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)

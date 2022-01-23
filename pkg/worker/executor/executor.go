@@ -221,8 +221,9 @@ func (e *Executor) createSymbolicLinks(paths []string, toPath string) error {
 				return err
 			}
 			if !info.IsDir() {
-				symbTarget := filepath.Join(toPath, filepath.Base(path))
-				os.Symlink(path, symbTarget)
+				if err := os.Symlink(path, filepath.Join(toPath, filepath.Base(path))); err != nil {
+					return err
+				}
 			}
 			return nil
 		})

@@ -22,6 +22,7 @@ import (
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
@@ -29,7 +30,7 @@ const (
 	controllerName = "calculations"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string, executeChan chan *calculationsv1.Calculation) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string, executeChan chan *calculationsv1.Calculation, workerPool, namespace string) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
 		Reconciler: &reconciler{
@@ -37,6 +38,8 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 			client:      mgr.GetClient(),
 			hostname:    hostname,
 			executeChan: executeChan,
+			workerPool:  workerPool,
+			namespace:   namespace,
 		},
 	})
 	if err != nil {
@@ -76,7 +79,9 @@ type reconciler struct {
 	client      ctrlruntimeclient.Client
 	executeChan chan *calculationsv1.Calculation
 
-	hostname string
+	hostname   string
+	namespace  string
+	workerPool string
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -104,6 +109,10 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		case v1.CreatedPhase:
 			r.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
 
+			if err := r.updateWorkerStatusInPool(ctx, workersv1.WorkerProcessingState); err != nil {
+				return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
+			}
+
 			r.logger.Info("Sent for execution")
 			r.executeChan <- calculation
 
@@ -126,7 +135,12 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			}
 		case calculationsv1.ProcessingPhase:
 			if isFinishedCalculation(calculation.Spec.Steps) {
-				r.updateCalculationPhase(ctx, calculation, getCalculationFinalPhase(calculation.Spec.Steps))
+				if err := r.updateCalculationPhase(ctx, calculation, getCalculationFinalPhase(calculation.Spec.Steps)); err != nil {
+					return fmt.Errorf("failed to update the calculation phase: %w", err)
+				}
+				if err := r.updateWorkerStatusInPool(ctx, workersv1.WorkerAvailableState); err != nil {
+					return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
+				}
 			}
 		}
 	}
@@ -145,7 +159,7 @@ type Controller struct {
 	namespace       string
 }
 
-func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname, namespace string) *Controller {
+func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname, namespace, workerPool string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
@@ -159,7 +173,7 @@ func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *c
 		namespace:       namespace,
 	}
 
-	if err := AddToManager(ctx, mgr, namespace, hostname, executeChan); err != nil {
+	if err := AddToManager(ctx, mgr, namespace, hostname, executeChan, workerPool, namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
 	}
 
@@ -221,6 +235,32 @@ func (r *reconciler) updateCalculationPhase(ctx context.Context, calc *calculati
 	}); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, status workersv1.WorkerState) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &workersv1.WorkerPool{}
+		err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: r.workerPool}, pool)
+		if err != nil {
+			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", r.workerPool, r.namespace, err)
+		}
+
+		now := time.Now()
+		if value, exists := pool.Spec.Workers[r.hostname]; exists {
+			value.LastUpdateTime.Time = now
+			value.State = status
+		}
+
+		r.logger.Info("Updating WorkerPool...")
+		if err := r.client.Update(ctx, pool); err != nil {
+			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
