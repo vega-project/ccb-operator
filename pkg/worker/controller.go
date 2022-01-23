@@ -158,10 +158,17 @@ type Controller struct {
 	stepUpdaterChan chan executor.Result
 	calcErrorChan   chan string
 	hostname        string
+	nodename        string
 	namespace       string
 }
 
-func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *calculationsv1.Calculation, calcErrorChan chan string, stepUpdaterChan chan executor.Result, hostname, namespace, workerPool string) *Controller {
+func NewController(
+	ctx context.Context,
+	mgr manager.Manager,
+	executeChan chan *calculationsv1.Calculation,
+	calcErrorChan chan string,
+	stepUpdaterChan chan executor.Result,
+	hostname, nodename, namespace, workerPool string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
 	controller := &Controller{
@@ -171,6 +178,7 @@ func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *c
 		stepUpdaterChan: stepUpdaterChan,
 		calcErrorChan:   calcErrorChan,
 		hostname:        hostname,
+		nodename:        nodename,
 		mgr:             mgr,
 		namespace:       namespace,
 	}
@@ -179,7 +187,7 @@ func NewController(ctx context.Context, mgr manager.Manager, executeChan chan *c
 		logrus.WithError(err).Fatal("Failed to add calculations controller to manager")
 	}
 
-	if err := workerpools.AddToManager(ctx, mgr, namespace, hostname, workerPool, namespace); err != nil {
+	if err := workerpools.AddToManager(ctx, mgr, namespace, hostname, nodename, workerPool, namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 

@@ -27,14 +27,14 @@ const (
 	controllerName = "workerpools"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string, workerPool, namespace string) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodename string, workerPool, namespace string) error {
 	logger := logrus.WithField("controller", controllerName)
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
 		Reconciler: &reconciler{
 			logger:     logger,
 			client:     mgr.GetClient(),
-			hostname:   hostname,
+			nodename:   nodename,
 			workerPool: workerPool,
 			namespace:  namespace,
 		},
@@ -56,7 +56,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 
 	return nil
 }
-func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrlruntimeclient.Client, workerPool, hostname, namespace string) error {
+func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrlruntimeclient.Client, workerPool, nodename, hostname, namespace string) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &workersv1.WorkerPool{}
 		err := client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool)
@@ -65,20 +65,20 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 		}
 
 		now := time.Now()
-		if value, exists := pool.Spec.Workers[hostname]; exists {
+		if value, exists := pool.Spec.Workers[nodename]; exists {
 			if value.LastUpdateTime != nil {
 				value.LastUpdateTime.Time = now
 			} else {
 				value.LastUpdateTime = &metav1.Time{Time: now}
 			}
 			value.State = workersv1.WorkerAvailableState
-			pool.Spec.Workers[hostname] = value
+			pool.Spec.Workers[nodename] = value
 		} else {
 			if pool.Spec.Workers == nil {
 				pool.Spec.Workers = make(map[string]workersv1.Worker)
 			}
 
-			pool.Spec.Workers[hostname] = workersv1.Worker{
+			pool.Spec.Workers[nodename] = workersv1.Worker{
 				Name:                  hostname,
 				RegisteredTime:        &metav1.Time{Time: now},
 				LastUpdateTime:        &metav1.Time{Time: now},
@@ -117,6 +117,7 @@ type reconciler struct {
 	logger     *logrus.Entry
 	client     ctrlruntimeclient.Client
 	hostname   string
+	nodename   string
 	namespace  string
 	workerPool string
 }
@@ -135,7 +136,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logger *logrus.Entry) error {
 	logger.Info("Starting reconciliation")
 
-	if err := registerWorkerInPool(ctx, logger, r.client, r.workerPool, r.hostname, r.namespace); err != nil {
+	if err := registerWorkerInPool(ctx, logger, r.client, r.workerPool, r.nodename, r.hostname, r.namespace); err != nil {
 		return fmt.Errorf("couldn't register worker in worker pool: %w", err)
 	}
 

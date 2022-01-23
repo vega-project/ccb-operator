@@ -22,6 +22,7 @@ type Operator struct {
 	calculationsController   *Controller
 	executor                 *executor.Executor
 	hostname                 string
+	nodename                 string
 	namespace                string
 	workerPool               string
 	nfsPath                  string
@@ -35,6 +36,7 @@ type Operator struct {
 func NewMainOperator(
 	ctx context.Context,
 	hostname,
+	nodename,
 	namespace,
 	workerPool,
 	nfsPath,
@@ -50,6 +52,7 @@ func NewMainOperator(
 		cfg:                      cfg,
 		dryRun:                   dryRun,
 		hostname:                 hostname,
+		nodename:                 nodename,
 		namespace:                namespace,
 		workerPool:               workerPool,
 		nfsPath:                  nfsPath,
@@ -76,7 +79,7 @@ func (op *Operator) Initialize() error {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
-	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.namespace, op.workerPool)
+	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.nodename, op.namespace, op.workerPool)
 	return nil
 }
 

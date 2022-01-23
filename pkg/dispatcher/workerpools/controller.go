@@ -174,8 +174,7 @@ func (r *reconciler) updateWorkerCalculationBulk(ctx context.Context, calcName, 
 func sortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
 	var ret []workersv1.Worker
 
-	for k, v := range workers {
-		v.Name = k
+	for _, v := range workers {
 		ret = append(ret, v)
 
 	}
