@@ -7,8 +7,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	corev1 "k8s.io/api/core/v1"
-
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -65,13 +63,13 @@ func AddToManager(mgr manager.Manager, ns string) error {
 
 func poolHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
-		pod, ok := o.(*corev1.Pod)
+		pool, ok := o.(*workersv1.WorkerPool)
 		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("got object that was not a Pod")
+			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("got object that was not a WorkerPool")
 			return nil
 		}
 		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}},
+			{NamespacedName: types.NamespacedName{Namespace: pool.Namespace, Name: pool.Name}},
 		}
 	})
 }
