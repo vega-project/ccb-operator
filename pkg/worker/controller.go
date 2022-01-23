@@ -49,9 +49,9 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname string,
 	}
 
 	predicateFuncs := predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 

@@ -123,6 +123,11 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						calc := util.NewCalculation(calculation.Params.Teff, calculation.Params.LogG)
 						calc.Assign = worker.Name
 						calc.Namespace = req.Namespace
+						calc.Labels = map[string]string{
+							"vegaproject.io/bulk":            bulk.Name,
+							"vegaproject.io/calculationName": name,
+						}
+
 						if err := r.client.Create(ctx, calc); err != nil {
 							return fmt.Errorf("couldn't create calculation: %w", err)
 						}

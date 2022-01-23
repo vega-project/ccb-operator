@@ -6,10 +6,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -20,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
@@ -39,7 +38,9 @@ var calculationValues = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	})
 
 func init() {
-	prometheus.Register(calculationValues)
+	if err := prometheus.Register(calculationValues); err != nil {
+		logrus.Errorf("couldn't register calculation values in prometheus")
+	}
 }
 
 func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
@@ -57,8 +58,8 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 	predicateFuncs := predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
-		GenericFunc: func(e event.GenericEvent) bool { return e.Object.GetNamespace() == ns },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 
 	cache := mgr.GetCache()
@@ -115,59 +116,42 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	calc := &v1.Calculation{}
 	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calc)
 	if err != nil {
-		return fmt.Errorf("failed to get pod: %s in namespace %s: %w", req.Name, req.Namespace, err)
+		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	processingCalculations := &v1.CalculationList{}
-	if err := r.client.List(ctx, processingCalculations, ctrlruntimeclient.MatchingFields{"phase": "Processing"}); err != nil {
-		return fmt.Errorf("couldn't get a list of calculations: %v", err)
+	var bulkName string
+	if value, exists := calc.Labels["vegaproject.io/bulk"]; exists {
+		bulkName = value
+	} else {
+		return fmt.Errorf("no `vegaproject.io/bulk` label found in calculation: %s/%s", req.Namespace, req.Name)
 	}
 
-	podList := &corev1.PodList{}
-	if err := r.client.List(ctx, podList, ctrlruntimeclient.MatchingLabels{"name": "vega-worker"}); err != nil {
-		return fmt.Errorf("couldn't get a list of vega-worker pods: %v", err)
+	var calcName string
+	if value, exists := calc.Labels["vegaproject.io/calculationName"]; exists {
+		calcName = value
+	} else {
+		return fmt.Errorf("no `vegaproject.io/calculationName` label found in calculation: %s/%s", req.Namespace, req.Name)
 	}
 
-	freeWorkers := func() sets.String {
-		ret := sets.NewString()
-		for _, pod := range podList.Items {
-			ret.Insert(pod.Name)
-		}
-		for _, calc := range processingCalculations.Items {
-			ret.Delete(calc.Assign)
-		}
-		return ret
-	}()
-
-	// TODO: if there are no free workers, we should requeue the calculation
-
-	if freeWorkers.Len() > 0 {
-		podName := freeWorkers.List()[0]
-		if err := r.assignCalculationToPod(ctx, calc, podName); err != nil {
-			r.logger.WithError(err).Errorf("couldn't create calculation for pod '%s'", podName)
-		}
-	}
-
-	return nil
-}
-
-func (r *reconciler) assignCalculationToPod(ctx context.Context, calc *v1.Calculation, podName string) error {
+	// Update the calculation Bulk that holds this calculation
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		calculation := &v1.Calculation{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: calc.Namespace, Name: calc.Name}, calculation); err != nil {
-			return fmt.Errorf("failed to get the calculation: %w", err)
+		bulk := &bulkv1.CalculationBulk{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulkName}, bulk); err != nil {
+			return fmt.Errorf("failed to get the calculation bulk: %w", err)
 		}
 
-		calculation.Assign = podName
+		bulkCalc := bulk.Calculations[calcName]
+		bulkCalc.Phase = calc.Phase
 
-		r.logger.WithField("pod", podName).Info("Updating calculation...")
-		if err := r.client.Update(ctx, calculation); err != nil {
-			return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+		bulk.Calculations[calcName] = bulkCalc
+
+		r.logger.WithField("bulk", bulkName).Info("Updating calculation bulk...")
+		if err := r.client.Update(ctx, bulk); err != nil {
+			return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
 		}
 		return nil
 	}); err != nil {
 		return err
 	}
-
 	return nil
 }
