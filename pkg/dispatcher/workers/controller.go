@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
 const (
@@ -124,7 +126,12 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if kerrors.IsNotFound(err) {
-		return r.deleteAssignedCalculations(ctx, pod.Name)
+		if err := r.reconcileWorkerInPools(ctx, pod.Spec.NodeName); err != nil {
+			return err
+		}
+		if err := r.deleteAssignedCalculations(ctx, pod.Name); err != nil {
+			return err
+		}
 	}
 
 	if pod.Status.Phase != corev1.PodRunning {
@@ -138,6 +145,40 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	calcList := &v1.CalculationList{}
 	if err := r.client.List(ctx, calcList, ctrlruntimeclient.MatchingLabels{"assign": req.Name}); err != nil {
 		return fmt.Errorf("couldn't get a list of calculations: %v", err)
+	}
+
+	return nil
+}
+
+func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podNode string) error {
+	workerPools := &workersv1.WorkerPoolList{}
+	if err := r.client.List(ctx, workerPools); err != nil {
+		return fmt.Errorf("couldn't get a list of worker pools: %v", err)
+	}
+
+	for _, pool := range workerPools.Items {
+		for workerName := range pool.Spec.Workers {
+			if workerName == podNode {
+
+				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					workerPool := &workersv1.WorkerPool{}
+					if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: pool.Namespace, Name: pool.Name}, workerPool); err != nil {
+						return fmt.Errorf("failed to get the calculation: %w", err)
+					}
+
+					workerToUpdate := workerPool.Spec.Workers[workerName]
+					workerToUpdate.State = workersv1.WorkerUnknownState
+
+					r.logger.WithField("worker-name", workerName).Info("Updating worker pool")
+					if err := r.client.Update(ctx, workerPool); err != nil {
+						return fmt.Errorf("failed to update worker pool %s: %w", workerPool.Name, err)
+					}
+					return nil
+				}); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -172,5 +213,7 @@ func (r *reconciler) deleteAssignedCalculations(ctx context.Context, assigned st
 			return fmt.Errorf("couldn't delete the calculation: %v", err)
 		}
 	}
+
+	// TODO Clean-up Phase for the corresponding calculation in bulk.
 	return nil
 }

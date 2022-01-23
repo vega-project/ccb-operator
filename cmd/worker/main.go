@@ -23,6 +23,7 @@ type options struct {
 	synspecInputTemplateFile string
 	namespace                string
 	workerPool               string
+	nodename                 string
 	dryRun                   bool
 }
 
@@ -37,6 +38,7 @@ func gatherOptions() options {
 	fs.StringVar(&o.kuruzModelTemplateFile, "kuruz-model-template-file", "", "Kuruz model template file.")
 	fs.StringVar(&o.synspecInputTemplateFile, "synspec-input-template-file", "", "Synspec input template file.")
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
+	fs.StringVar(&o.nodename, "nodename", "", "The name of the node in which the worker is running")
 	fs.StringVar(&o.workerPool, "worker-pool", "vega-workers", "The pool where the worker will post the status updates")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "")
 
@@ -66,6 +68,10 @@ func validateOptions(o options) error {
 	if len(o.synspecInputTemplateFile) == 0 {
 		return fmt.Errorf("--synspec-input-template-file was not provided")
 	}
+	if len(o.nodename) == 0 {
+		return fmt.Errorf("--nodename was not provided")
+	}
+
 	return nil
 }
 
@@ -99,7 +105,7 @@ func main() {
 
 	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, hostname, o.namespace, o.workerPool, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
+	op := worker.NewMainOperator(ctx, hostname, o.nodename, o.namespace, o.workerPool, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
 	if err := op.Initialize(); err != nil {
 		logger.WithError(err).Fatal("couldn't initialize operator")
 	}

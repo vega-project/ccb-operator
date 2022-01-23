@@ -20,12 +20,14 @@ func TestRegisterWorkerInPool(t *testing.T) {
 	testCases := []struct {
 		name       string
 		workerName string
+		nodename   string
 		workerPool []ctrlruntimeclient.Object
 		expected   []workersv1.WorkerPool
 	}{
 		{
 			name:       "basic case, no worker was previously registered",
 			workerName: "test-worker",
+			nodename:   "test-node-1",
 			workerPool: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "vega-workers", Namespace: "vega"},
@@ -37,7 +39,7 @@ func TestRegisterWorkerInPool(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "vega-workers", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
-							"test-worker": {
+							"test-node-1": {
 								Name:                  "test-worker",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
@@ -52,6 +54,7 @@ func TestRegisterWorkerInPool(t *testing.T) {
 		{
 			name:       "basic case, new worker to register",
 			workerName: "test-worker",
+			nodename:   "test-node-1",
 			workerPool: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "vega-workers", Namespace: "vega"},
@@ -95,7 +98,7 @@ func TestRegisterWorkerInPool(t *testing.T) {
 								CalculationsProcessed: 0,
 								State:                 workersv1.WorkerAvailableState,
 							},
-							"test-worker": {
+							"test-node-1": {
 								Name:                  "test-worker",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
@@ -112,7 +115,7 @@ func TestRegisterWorkerInPool(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			client := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.workerPool...).Build()
-			if err := registerWorkerInPool(context.Background(), logrus.WithField("test-name", tc.name), client, "vega-workers", tc.workerName, "vega"); err != nil {
+			if err := registerWorkerInPool(context.Background(), logrus.WithField("test-name", tc.name), client, "vega-workers", tc.nodename, tc.workerName, "vega"); err != nil {
 				t.Fatal(err)
 			}
 

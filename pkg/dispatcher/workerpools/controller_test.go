@@ -59,9 +59,9 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
-							"worker-1": {State: workersv1.WorkerProcessingState},
-							"worker-2": {State: workersv1.WorkerProcessingState},
-							"worker-3": {State: workersv1.WorkerProcessingState},
+							"node-1": {Name: "worker-1", State: workersv1.WorkerProcessingState},
+							"node-2": {Name: "worker-2", State: workersv1.WorkerProcessingState},
+							"node-3": {Name: "worker-3", State: workersv1.WorkerProcessingState},
 						},
 					},
 				},
@@ -80,9 +80,9 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
-							"worker-1": {State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
-							"worker-2": {State: workersv1.WorkerProcessingState},
-							"worker-3": {State: workersv1.WorkerProcessingState},
+							"worker-1": {Name: "worker-1", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
+							"node-2":   {Name: "worker-2", State: workersv1.WorkerProcessingState},
+							"node-3":   {Name: "worker-3", State: workersv1.WorkerProcessingState},
 						},
 					},
 				},
@@ -125,9 +125,9 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
-							"worker-1": {State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
-							"worker-2": {State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 11, 0, 0, 0, time.UTC)}},
-							"worker-3": {State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 10, 0, 0, 0, time.UTC)}},
+							"node-1": {Name: "worker-1", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
+							"node-2": {Name: "worker-2", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 11, 0, 0, 0, time.UTC)}},
+							"node-3": {Name: "worker-3", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 10, 0, 0, 0, time.UTC)}},
 						},
 					},
 				},
