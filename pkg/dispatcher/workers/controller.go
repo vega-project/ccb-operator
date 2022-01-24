@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +20,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
@@ -28,20 +28,6 @@ import (
 const (
 	controllerName = "worker_pods"
 )
-
-var podStatusValue = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	Namespace: "vega",
-	Name:      "pod_status",
-	Help:      "Status of a worker pod",
-},
-	[]string{
-		"pod_name",
-		"pod_status",
-	})
-
-func init() {
-	prometheus.Register(podStatusValue)
-}
 
 func AddToManager(mgr manager.Manager, ns string) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{
@@ -126,31 +112,22 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if kerrors.IsNotFound(err) {
-		if err := r.reconcileWorkerInPools(ctx, pod.Spec.NodeName); err != nil {
+		if err := r.reconcileWorkerInPools(ctx, req.Name); err != nil {
 			return err
 		}
-		if err := r.deleteAssignedCalculations(ctx, pod.Name); err != nil {
+		if err := r.deleteAssignedCalculations(ctx, req.Name); err != nil {
 			return err
 		}
+	} else {
+		if pod.Status.Phase != corev1.PodRunning {
+			logrus.WithField("pod_name", req.Name).Error("Pod is not in Ready phase")
+			return nil
+		}
 	}
-
-	if pod.Status.Phase != corev1.PodRunning {
-		logrus.WithField("pod_name", pod.Name).Error("Pod is not in Ready phase")
-		return nil
-	}
-
-	podStatusValue.With(prometheus.Labels{"pod_name": pod.Name, "pod_status": string(pod.Status.Phase)}).Inc()
-
-	// Get a list of the calculations that are assinged to this pod
-	calcList := &v1.CalculationList{}
-	if err := r.client.List(ctx, calcList, ctrlruntimeclient.MatchingLabels{"assign": req.Name}); err != nil {
-		return fmt.Errorf("couldn't get a list of calculations: %v", err)
-	}
-
 	return nil
 }
 
-func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podNode string) error {
+func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podName string) error {
 	workerPools := &workersv1.WorkerPoolList{}
 	if err := r.client.List(ctx, workerPools); err != nil {
 		return fmt.Errorf("couldn't get a list of worker pools: %v", err)
@@ -158,15 +135,17 @@ func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podNode string)
 
 	for _, pool := range workerPools.Items {
 		for name, worker := range pool.Spec.Workers {
-			if worker.Name == podNode {
+			if worker.Name == podName {
 				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					workerPool := &workersv1.WorkerPool{}
 					if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: pool.Namespace, Name: pool.Name}, workerPool); err != nil {
 						return fmt.Errorf("failed to get the calculation: %w", err)
 					}
 
-					workerToUpdate := workerPool.Spec.Workers[worker.Name]
+					workerToUpdate := workerPool.Spec.Workers[name]
 					workerToUpdate.State = workersv1.WorkerUnknownState
+
+					workerPool.Spec.Workers[name] = workerToUpdate
 
 					r.logger.WithField("worker-name", worker.Name).WithField("worker", name).Info("Updating worker pool")
 					if err := r.client.Update(ctx, workerPool); err != nil {
@@ -185,7 +164,7 @@ func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podNode string)
 
 func (r *reconciler) deleteAssignedCalculations(ctx context.Context, assigned string) error {
 	calcList := &v1.CalculationList{}
-	if err := r.client.List(ctx, calcList, ctrlruntimeclient.MatchingLabels{"assign": assigned}); err != nil {
+	if err := r.client.List(ctx, calcList, ctrlruntimeclient.MatchingLabels{"vegaproject.io/assign": assigned}); err != nil {
 		return fmt.Errorf("couldn't get a list of calculations: %v", err)
 	}
 
@@ -203,16 +182,42 @@ func (r *reconciler) deleteAssignedCalculations(ctx context.Context, assigned st
 		r.logger.WithField("pod-name", assigned).Info("there were no calculations assigned to pod to delete...")
 		return nil
 	}
-	if len(assignedCalculations) > 1 {
-		return fmt.Errorf("more than one calculations found assigned to pod %s", assigned)
-	}
 
 	for _, calc := range assignedCalculations {
 		if err := r.client.Delete(ctx, &calc); err != nil {
 			return fmt.Errorf("couldn't delete the calculation: %v", err)
 		}
+
+		bulkName, exist := calc.Labels["vegaproject.io/bulk"]
+		if !exist {
+			continue
+		}
+
+		calcBulkName, exist := calc.Labels["vegaproject.io/calculationName"]
+		if !exist {
+			continue
+		}
+
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			bulk := &bulkv1.CalculationBulk{}
+			if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: calc.Namespace, Name: bulkName}, bulk); err != nil {
+				return fmt.Errorf("failed to get the calculation: %w", err)
+			}
+
+			calculation := bulk.Calculations[calcBulkName]
+			calculation.Phase = ""
+			bulk.Calculations[calcBulkName] = calculation
+
+			r.logger.WithField("bulk_calc_name", calcBulkName).WithField("bulk_name", bulkName).Info("Updating calculation bulk")
+			if err := r.client.Update(ctx, bulk); err != nil {
+				return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+
 	}
 
-	// TODO Clean-up Phase for the corresponding calculation in bulk.
 	return nil
 }
