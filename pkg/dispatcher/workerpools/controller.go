@@ -126,6 +126,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						calc.Labels = map[string]string{
 							"vegaproject.io/bulk":            bulk.Name,
 							"vegaproject.io/calculationName": name,
+							"vegaproject.io/assign":          worker.Name,
 						}
 
 						if err := r.client.Create(ctx, calc); err != nil {
