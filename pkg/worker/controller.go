@@ -263,15 +263,17 @@ func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, state workers
 		}
 
 		now := time.Now()
-		if value, exists := pool.Spec.Workers[r.nodename]; exists {
-			if value.LastUpdateTime != nil {
-				value.LastUpdateTime.Time = now
+		worker, exists := pool.Spec.Workers[r.nodename]
+		if exists {
+			if worker.LastUpdateTime != nil {
+				worker.LastUpdateTime.Time = now
 			} else {
-				value.LastUpdateTime = &metav1.Time{Time: now}
+				worker.LastUpdateTime = &metav1.Time{Time: now}
 			}
-			value.State = state
+			worker.State = state
 		}
 
+		pool.Spec.Workers[r.nodename] = worker
 		r.logger.Info("Updating WorkerPool...")
 		if err := r.client.Update(ctx, pool); err != nil {
 			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
