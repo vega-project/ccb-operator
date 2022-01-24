@@ -57,7 +57,7 @@ func AddToManager(mgr manager.Manager, ns string) error {
 
 	predicateFuncs := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
-		DeleteFunc: func(e event.DeleteEvent) bool { return e.Object.GetNamespace() == ns  },
+		DeleteFunc: func(e event.DeleteEvent) bool { return e.Object.GetNamespace() == ns },
 		UpdateFunc: func(e event.UpdateEvent) bool {
 
 			// Object is marked for deletion
@@ -157,19 +157,18 @@ func (r *reconciler) reconcileWorkerInPools(ctx context.Context, podNode string)
 	}
 
 	for _, pool := range workerPools.Items {
-		for workerName := range pool.Spec.Workers {
-			if workerName == podNode {
-
+		for name, worker := range pool.Spec.Workers {
+			if worker.Name == podNode {
 				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					workerPool := &workersv1.WorkerPool{}
 					if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: pool.Namespace, Name: pool.Name}, workerPool); err != nil {
 						return fmt.Errorf("failed to get the calculation: %w", err)
 					}
 
-					workerToUpdate := workerPool.Spec.Workers[workerName]
+					workerToUpdate := workerPool.Spec.Workers[worker.Name]
 					workerToUpdate.State = workersv1.WorkerUnknownState
 
-					r.logger.WithField("worker-name", workerName).Info("Updating worker pool")
+					r.logger.WithField("worker-name", worker.Name).WithField("worker", name).Info("Updating worker pool")
 					if err := r.client.Update(ctx, workerPool); err != nil {
 						return fmt.Errorf("failed to update worker pool %s: %w", workerPool.Name, err)
 					}
