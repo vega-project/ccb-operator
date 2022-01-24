@@ -113,7 +113,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		case v1.CreatedPhase:
 			r.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
 
-			if err := r.updateWorkerStatusInPool(ctx, workersv1.WorkerProcessingState); err != nil {
+			if err := updateWorkerStatusInPool(ctx, r.client, r.workerPool, r.nodename, r.namespace, workersv1.WorkerProcessingState); err != nil {
 				return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
 			}
 
@@ -142,7 +142,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 				if err := r.updateCalculationPhase(ctx, calculation, getCalculationFinalPhase(calculation.Spec.Steps)); err != nil {
 					return fmt.Errorf("failed to update the calculation phase: %w", err)
 				}
-				if err := r.updateWorkerStatusInPool(ctx, workersv1.WorkerAvailableState); err != nil {
+				if err := updateWorkerStatusInPool(ctx, r.client, r.workerPool, r.nodename, r.namespace, workersv1.WorkerAvailableState); err != nil {
 					return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
 				}
 			}
@@ -162,6 +162,7 @@ type Controller struct {
 	hostname        string
 	nodename        string
 	namespace       string
+	workerPool      string
 }
 
 func NewController(
@@ -183,6 +184,7 @@ func NewController(
 		nodename:        nodename,
 		mgr:             mgr,
 		namespace:       namespace,
+		workerPool:      workerPool,
 	}
 
 	if err := AddToManager(ctx, mgr, namespace, hostname, nodename, executeChan, workerPool, namespace); err != nil {
@@ -254,16 +256,16 @@ func (r *reconciler) updateCalculationPhase(ctx context.Context, calc *calculati
 	return nil
 }
 
-func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, state workersv1.WorkerState) error {
+func updateWorkerStatusInPool(ctx context.Context, client ctrlruntimeclient.Client, workerPool, nodename, namespace string, state workersv1.WorkerState) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &workersv1.WorkerPool{}
-		err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: r.namespace, Name: r.workerPool}, pool)
+		err := client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool)
 		if err != nil {
-			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", r.workerPool, r.namespace, err)
+			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", workerPool, namespace, err)
 		}
 
 		now := time.Now()
-		worker, exists := pool.Spec.Workers[r.nodename]
+		worker, exists := pool.Spec.Workers[nodename]
 		if exists {
 			if worker.LastUpdateTime != nil {
 				worker.LastUpdateTime.Time = now
@@ -273,9 +275,8 @@ func (r *reconciler) updateWorkerStatusInPool(ctx context.Context, state workers
 			worker.State = state
 		}
 
-		pool.Spec.Workers[r.nodename] = worker
-		r.logger.Info("Updating WorkerPool...")
-		if err := r.client.Update(ctx, pool); err != nil {
+		pool.Spec.Workers[nodename] = worker
+		if err := client.Update(ctx, pool); err != nil {
 			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
 		}
 		return nil
@@ -300,6 +301,10 @@ func (c *Controller) resultUpdater(stopCh <-chan struct{}) {
 		case calcName := <-c.calcErrorChan:
 			if err := c.updateErrorCalculation(calcName); err != nil {
 				c.logger.WithError(err).WithField("calc-name", calcName).Error("Error updating calculation")
+			}
+
+			if err := updateWorkerStatusInPool(c.ctx, c.client, c.workerPool, c.nodename, c.namespace, workersv1.WorkerAvailableState); err != nil {
+				c.logger.WithError(err).Error("failed to update worker's state in worker pool: %w", err)
 			}
 		}
 	}
