@@ -57,7 +57,7 @@ func AddToManager(mgr manager.Manager, ns string) error {
 
 	predicateFuncs := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
-		DeleteFunc: func(e event.DeleteEvent) bool { return false },
+		DeleteFunc: func(e event.DeleteEvent) bool { return e.Object.GetNamespace() == ns  },
 		UpdateFunc: func(e event.UpdateEvent) bool {
 
 			// Object is marked for deletion
