@@ -2,6 +2,8 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -25,7 +27,14 @@ type WorkerPoolList struct {
 }
 
 type WorkerPoolSpec struct {
-	Workers map[string]Worker `json:"workers,omitempty"`
+	CalculationBulks map[string]CalculationBulk `json:"calculationBulks,omitempty"`
+	Workers          map[string]Worker          `json:"workers,omitempty"`
+}
+
+type CalculationBulk struct {
+	Name           string                      `json:"name,omitempty"`
+	RegisteredTime *metav1.Time                `json:"registeredTime,omitempty"`
+	State          bulkv1.CalculationBulkState `json:"state,omitempty"`
 }
 
 type Worker struct {

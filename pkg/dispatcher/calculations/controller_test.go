@@ -31,7 +31,7 @@ func TestReconcile(t *testing.T) {
 				&bulkv1.CalculationBulk{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{
-						"test-calc": bulkv1.Calculation{},
+						"test-calc": {},
 					},
 				},
 			},
@@ -49,7 +49,7 @@ func TestReconcile(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{
-						"test-calc": bulkv1.Calculation{Phase: calcv1.CreatedPhase},
+						"test-calc": {Phase: calcv1.CreatedPhase},
 					},
 				},
 			},
@@ -60,7 +60,7 @@ func TestReconcile(t *testing.T) {
 				&bulkv1.CalculationBulk{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{
-						"test-calc": bulkv1.Calculation{},
+						"test-calc": {},
 					},
 				},
 			},
@@ -94,7 +94,7 @@ func TestReconcile(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{
-						"test-calc": bulkv1.Calculation{Phase: calcv1.ProcessingPhase},
+						"test-calc": {Phase: calcv1.ProcessingPhase},
 					},
 				},
 			},

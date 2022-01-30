@@ -55,8 +55,9 @@ func TestReconcile(t *testing.T) {
 			},
 			workerpools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", State: workersv1.WorkerProcessingState},
 							"node-2": {Name: "worker-2", State: workersv1.WorkerProcessingState},
@@ -70,14 +71,21 @@ func TestReconcile(t *testing.T) {
 			name: "basic case, one free worker",
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk"},
+					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"test-bulk": {
+								Name:           "test-bulk",
+								RegisteredTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)},
+								State:          bulkv1.CalculationBulkAvailableState,
+							},
+						},
 						Workers: map[string]workersv1.Worker{
 							"worker-1": {Name: "worker-1", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
 							"node-2":   {Name: "worker-2", State: workersv1.WorkerProcessingState},
@@ -90,7 +98,7 @@ func TestReconcile(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "calc-xc864fxvd5xccn6x",
-						Namespace: "test-namespace",
+						Namespace: "vega",
 						Labels: map[string]string{
 							"vegaproject.io/bulk":            "test-bulk",
 							"vegaproject.io/calculationName": "test-calc",
@@ -116,14 +124,21 @@ func TestReconcile(t *testing.T) {
 			name: "basic case, multiple free workers",
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk"},
+					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "test-namespace", Name: "workerpool-test"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"test-bulk": {
+								Name:           "test-bulk",
+								RegisteredTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)},
+								State:          bulkv1.CalculationBulkAvailableState,
+							},
+						},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)}},
 							"node-2": {Name: "worker-2", State: workersv1.WorkerAvailableState, LastUpdateTime: &metav1.Time{Time: time.Date(2022, 1, 1, 11, 0, 0, 0, time.UTC)}},
@@ -136,7 +151,7 @@ func TestReconcile(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "calc-xc864fxvd5xccn6x",
-						Namespace: "test-namespace",
+						Namespace: "vega",
 						Labels: map[string]string{
 							"vegaproject.io/bulk":            "test-bulk",
 							"vegaproject.io/calculationName": "test-calc",
@@ -165,7 +180,7 @@ func TestReconcile(t *testing.T) {
 				logger: logrus.WithField("test-name", tc.name),
 				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(append(tc.calculationBulks, tc.workerpools...)...).Build(),
 			}
-			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "test-namespace", Name: "workerpool-test"}}
+			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "vega", Name: "workerpool-test"}}
 			if err := r.reconcile(context.Background(), req, r.logger); err != nil {
 				t.Fatal(err)
 			}

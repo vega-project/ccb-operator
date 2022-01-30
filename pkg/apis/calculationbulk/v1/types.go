@@ -14,6 +14,7 @@ type CalculationBulk struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	WorkerPool   string                 `json:"workerPool,omitempty"`
 	Calculations map[string]Calculation `json:"calculations,omitempty"`
 	Status       CalculationBulkStatus  `json:"status,omitempty"`
 }
@@ -40,6 +41,15 @@ type CalculationBulkList struct {
 }
 
 type CalculationBulkStatus struct {
-	CreatedTime    metav1.Time  `json:"startTime,omitempty"`
-	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+	CreatedTime    metav1.Time          `json:"startTime,omitempty"`
+	CompletionTime *metav1.Time         `json:"completionTime,omitempty"`
+	State          CalculationBulkState `json:"state,omitempty"`
 }
+
+type CalculationBulkState string
+
+const (
+	CalculationBulkAvailableState  CalculationBulkState = "Available"
+	CalculationBulkProcessingState CalculationBulkState = "Processing"
+	CalculationBulkUnknownState    CalculationBulkState = "Unknown"
+)
