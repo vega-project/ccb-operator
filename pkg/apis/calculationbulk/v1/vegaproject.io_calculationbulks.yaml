@@ -58,7 +58,11 @@ spec:
               startTime:
                 format: date-time
                 type: string
+              state:
+                type: string
             type: object
+          workerPool:
+            type: string
         type: object
     served: true
     storage: true

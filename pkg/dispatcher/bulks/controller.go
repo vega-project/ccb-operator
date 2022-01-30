@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -20,29 +19,12 @@ import (
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
-	"github.com/vega-project/ccb-operator/pkg/util"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
 const (
-	controllerName = "calculations"
+	controllerName = "bulks"
 )
-
-var calculationValues = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	Namespace: "vega",
-	Name:      "calculations",
-	Help:      "Calculation ID, status and time of creation",
-},
-	[]string{
-		"calc_id",
-		"status",
-		"creation_time",
-	})
-
-func init() {
-	if err := prometheus.Register(calculationValues); err != nil {
-		logrus.Errorf("couldn't register calculation values in prometheus")
-	}
-}
 
 func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{
@@ -59,7 +41,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 	predicateFuncs := predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 
@@ -68,29 +50,27 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 		return []string{string(obj.(*v1.Calculation).Phase)}
 	}
 
-	if err := cache.IndexField(ctx, &v1.Calculation{}, "phase", indexFunc); err != nil {
+	if err := cache.IndexField(ctx, &bulkv1.CalculationBulk{}, "phase", indexFunc); err != nil {
 		return fmt.Errorf("failed to construct the indexing fields for the cache")
 	}
 
-	if err := c.Watch(source.NewKindWithCache(&v1.Calculation{}, cache), calculationHandler(), predicateFuncs); err != nil {
+	if err := c.Watch(source.NewKindWithCache(&bulkv1.CalculationBulk{}, cache), calculationBulkHandler(), predicateFuncs); err != nil {
 		return fmt.Errorf("failed to create watch for Calculations: %w", err)
 	}
 
 	return nil
 }
 
-func calculationHandler() handler.EventHandler {
+func calculationBulkHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
-		calc, ok := o.(*v1.Calculation)
+		bulk, ok := o.(*bulkv1.CalculationBulk)
 		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a Calculation")
+			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a CalculationBulk")
 			return nil
 		}
 
-		calculationValues.With(prometheus.Labels{"calc_id": calc.Name, "status": string(calc.Phase), "creation_time": calc.Status.StartTime.Time.String()}).Inc()
-
 		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Namespace: calc.Namespace, Name: calc.Name}},
+			{NamespacedName: types.NamespacedName{Namespace: bulk.Namespace, Name: bulk.Name}},
 		}
 	})
 }
@@ -114,41 +94,34 @@ func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logger *logrus.Entry) error {
 	logger.Info("Starting reconciliation")
 
-	calc := &v1.Calculation{}
-	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calc)
+	bulk := &bulkv1.CalculationBulk{}
+	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, bulk)
 	if err != nil {
-		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
+		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	var bulkName string
-	if value, exists := calc.Labels[util.BulkLabel]; exists {
-		bulkName = value
-	} else {
-		return fmt.Errorf("no `%s` label found in calculation: %s/%s", util.BulkLabel, req.Namespace, req.Name)
+	workerpool := &workersv1.WorkerPool{}
+	if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
+		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	var calcName string
-	if value, exists := calc.Labels[util.CalculationNameLabel]; exists {
-		calcName = value
-	} else {
-		return fmt.Errorf("no `%s` label found in calculation: %s/%s", util.CalculationNameLabel, req.Namespace, req.Name)
-	}
-
-	// Update the calculation Bulk that holds this calculation
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		bulk := &bulkv1.CalculationBulk{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulkName}, bulk); err != nil {
+		pool := &workersv1.WorkerPool{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, pool); err != nil {
 			return fmt.Errorf("failed to get the calculation bulk: %w", err)
 		}
 
-		bulkCalc := bulk.Calculations[calcName]
-		bulkCalc.Phase = calc.Phase
+		if pool.Spec.CalculationBulks == nil {
+			pool.Spec.CalculationBulks = make(map[string]workersv1.CalculationBulk)
+		}
+		pool.Spec.CalculationBulks[bulk.Name] = workersv1.CalculationBulk{
+			RegisteredTime: &bulk.CreationTimestamp,
+			State:          bulk.Status.State,
+		}
 
-		bulk.Calculations[calcName] = bulkCalc
-
-		r.logger.WithField("bulk", bulkName).Info("Updating calculation bulk...")
-		if err := r.client.Update(ctx, bulk); err != nil {
-			return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
+		r.logger.WithField("worker-pool", pool.Name).Info("Updating worker pool...")
+		if err := r.client.Update(ctx, pool); err != nil {
+			return fmt.Errorf("failed to update worker pool %s: %w", pool.Name, err)
 		}
 		return nil
 	}); err != nil {

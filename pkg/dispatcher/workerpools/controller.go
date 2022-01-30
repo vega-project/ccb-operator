@@ -3,7 +3,6 @@ package workerpools
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/sirupsen/logrus"
 
@@ -101,22 +100,15 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	for _, worker := range sortWorkers(workerpool.Spec.Workers) {
-		if worker.State == workersv1.WorkerAvailableState {
-			calculationBulks := &bulkv1.CalculationBulkList{}
-			if err := r.client.List(ctx, calculationBulks); err != nil {
-				return fmt.Errorf("couldn't get the list of calculationbulks %w", err)
-			}
+	if firstBulk := util.GetFirstCalculationBulk(workerpool.Spec.CalculationBulks); firstBulk != nil {
+		for _, worker := range util.SortWorkers(workerpool.Spec.Workers) {
+			if worker.State == workersv1.WorkerAvailableState {
 
-			if len(calculationBulks.Items) > 0 {
-				// Sorting the calculationbulks by the creation time
-				if len(calculationBulks.Items) > 1 {
-					sort.Slice(calculationBulks.Items, func(i, j int) bool {
-						return calculationBulks.Items[i].Status.CreatedTime.Before(&calculationBulks.Items[j].Status.CreatedTime)
-					})
+				bulk := &bulkv1.CalculationBulk{}
+				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: firstBulk.Name}, bulk); err != nil {
+					return fmt.Errorf("couldn't get calculationbulk %w", err)
 				}
 
-				bulk := calculationBulks.Items[0]
 				for name, calculation := range bulk.Calculations {
 					// we assume that if the phase is empty, then the calculation haven't yet been processed.
 					if calculation.Phase == "" {
@@ -124,9 +116,9 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						calc.Assign = worker.Name
 						calc.Namespace = req.Namespace
 						calc.Labels = map[string]string{
-							"vegaproject.io/bulk":            bulk.Name,
-							"vegaproject.io/calculationName": name,
-							"vegaproject.io/assign":          worker.Name,
+							util.BulkLabel:            bulk.Name,
+							util.CalculationNameLabel: name,
+							"vegaproject.io/assign":   worker.Name,
 						}
 
 						if err := r.client.Create(ctx, calc); err != nil {
@@ -170,17 +162,4 @@ func (r *reconciler) updateWorkerCalculationBulk(ctx context.Context, calcName, 
 	}
 
 	return nil
-}
-
-func sortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
-	var ret []workersv1.Worker
-
-	for _, v := range workers {
-		ret = append(ret, v)
-
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].LastUpdateTime.Before(ret[j].LastUpdateTime)
-	})
-	return ret
 }
