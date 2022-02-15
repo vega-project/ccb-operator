@@ -19,8 +19,10 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
+	bulk "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -33,6 +35,142 @@ type server struct {
 	ctx         context.Context
 	client      ctrlruntimeclient.Client
 	resultsPath string
+}
+
+func (s *server) createCalculationBulk(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	decoder := json.NewDecoder(r.Body)
+
+	var calcBulk struct {
+		Teff string `json:"teff"`
+		LogG string `json:"logG"`
+	}
+
+	err := decoder.Decode(&calcBulk)
+	if err != nil {
+		responseError(w, "couldn't decode json params", err)
+		return
+	}
+
+	t, err := strconv.ParseFloat(calcBulk.Teff, 64)
+	if err != nil {
+		responseError(w, "couldn't parse teff as a float number", err)
+		return
+	}
+
+	l, err := strconv.ParseFloat(calcBulk.LogG, 64)
+	if err != nil {
+		responseError(w, "couldn't parse logG as a float number", err)
+		return
+	}
+
+	params := &bulk.Params{
+		LogG: l,
+		Teff: t,
+	}
+
+	calculationBulk := &bulk.CalculationBulk{
+		WorkerPool: "worker_pools",
+		Status: bulk.CalculationBulkStatus{
+			State:          bulk.CalculationBulkUnknownState,
+			CreatedTime:    metav1.Now(),
+			CompletionTime: &metav1.Time{},
+		},
+		Calculations: make(map[string]bulk.Calculation),
+	}
+
+	if entry, ok := calculationBulk.Calculations[calculationBulk.WorkerPool]; ok {
+		entry.Params = *params
+		calculationBulk.Calculations[calculationBulk.WorkerPool] = entry
+	}
+
+	calculationBulk.Namespace = s.namespace
+	if err := s.client.Create(s.ctx, calculationBulk); err != nil {
+		responseError(w, "couldn't create calculation", err)
+	} else {
+		json.NewEncoder(w).Encode(calculationBulk)
+	}
+}
+
+func (s *server) getCalculationBulk(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	r.ParseForm()
+
+	teff := r.Form.Get("teff")
+	logG := r.Form.Get("logG")
+
+	t, _ := strconv.ParseFloat(teff, 64)
+	l, _ := strconv.ParseFloat(logG, 64)
+
+	var calcBulkList bulk.CalculationBulkList
+	if err := s.client.List(s.ctx, &calcBulkList); err != nil {
+		responseError(w, fmt.Sprintf("failed to get calculation bulk with teff: %s and logG: %s", teff, logG), err)
+	} else {
+		var bulks []bulk.CalculationBulk
+		for _, calc := range calcBulkList.Items {
+			if calc.Calculations[calc.WorkerPool].Params.Teff == t && calc.Calculations[calc.WorkerPool].Params.LogG == l {
+				bulks = append(bulks, calc)
+			}
+		}
+		json.NewEncoder(w).Encode(bulks)
+	}
+}
+func (s *server) getCalculationBulks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	s.logger.WithFields(logrus.Fields{"host": r.Host, "url": r.URL, "method": r.Method, "user-agent": r.UserAgent()}).Info("getting calculation bulks")
+
+	var calcBulkList bulk.CalculationBulkList
+	if err := s.client.List(s.ctx, &calcBulkList); err != nil {
+		responseError(w, "couldn't get calculations bulk list", err)
+	} else {
+		json.NewEncoder(w).Encode(calcBulkList)
+	}
+}
+
+func (s *server) deleteCalculationBulk(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "DELETE" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	calcBulkID := mux.Vars(r)["id"]
+
+	calcBulk := &bulk.CalculationBulk{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcBulkID}, calcBulk)
+	if err != nil {
+		responseError(w, fmt.Sprintf("failed to get calculation bulk %s", calcBulkID), err)
+	}
+
+	if err := s.client.Delete(s.ctx, calcBulk); err != nil {
+		responseError(w, "couldn't delete calculation bulk", err)
+	} else {
+		json.NewEncoder(w).Encode(response(fmt.Sprintf("calculation bulk %q has been deleted", calcBulkID), http.StatusOK))
+	}
 }
 
 func (s *server) createCalculation(w http.ResponseWriter, r *http.Request) {

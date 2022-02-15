@@ -73,6 +73,10 @@ func main() {
 	}
 
 	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/calculationbulks", s.getCalculationBulks)
+	router.HandleFunc("/calculationbulk/{id}", s.getCalculationBulk)
+	router.HandleFunc("/calculationbulk/create", s.createCalculationBulk)
+	router.HandleFunc("/calculationbulk/delete/{id}", s.deleteCalculationBulk)
 	router.HandleFunc("/calculations", s.getCalculations)
 	router.HandleFunc("/calculation/{id}", s.getCalculationByName)
 	router.HandleFunc("/calculation", s.getCalculation)
