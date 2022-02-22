@@ -105,6 +105,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			pool.Spec.CalculationBulks = make(map[string]workersv1.CalculationBulk)
 		}
 		pool.Spec.CalculationBulks[bulk.Name] = workersv1.CalculationBulk{
+			Name:           bulk.Name,
 			RegisteredTime: &bulk.CreationTimestamp,
 			State:          bulk.Status.State,
 		}

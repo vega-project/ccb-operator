@@ -46,7 +46,7 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
 						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk": {State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk": {Name: "test-bulk", State: bulkv1.CalculationBulkAvailableState},
 						}},
 				},
 			},
@@ -67,8 +67,8 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
 						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk-0": {State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk-1": {State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk-0": {Name: "test-bulk-0", State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk-1": {Name: "test-bulk-1", State: bulkv1.CalculationBulkAvailableState},
 						},
 					},
 				},
@@ -78,9 +78,9 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
 						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk-0": {State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk-1": {State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk":   {State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk-0": {Name: "test-bulk-0", State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk-1": {Name: "test-bulk-1", State: bulkv1.CalculationBulkAvailableState},
+							"test-bulk":   {Name: "test-bulk", State: bulkv1.CalculationBulkAvailableState},
 						}},
 				},
 			},
