@@ -14,6 +14,7 @@ import (
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workerpools"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
@@ -89,6 +90,10 @@ func main() {
 	}
 
 	if err := workerpools.AddToManager(mgr, o.namespace); err != nil {
+		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
+	}
+
+	if err := bulks.AddToManager(ctx, mgr, o.namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
