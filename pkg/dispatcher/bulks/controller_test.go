@@ -20,10 +20,10 @@ import (
 
 func TestReconcile(t *testing.T) {
 	testCases := []struct {
-		name          string
-		bulks         []ctrlruntimeclient.Object
-		pools         []ctrlruntimeclient.Object
-		expectedBulks []workersv1.WorkerPool
+		name     string
+		bulks    []ctrlruntimeclient.Object
+		pools    []ctrlruntimeclient.Object
+		expected []workersv1.WorkerPool
 	}{
 		{
 			name: "basic case",
@@ -41,7 +41,7 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 				},
 			},
-			expectedBulks: []workersv1.WorkerPool{
+			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
@@ -73,7 +73,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 			},
-			expectedBulks: []workersv1.WorkerPool{
+			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
 					Spec: workersv1.WorkerPoolSpec{
@@ -104,7 +104,7 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(actualPools.Items, tc.expectedBulks,
+			if diff := cmp.Diff(actualPools.Items, tc.expected,
 				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
 				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
 				t.Fatal(diff)
