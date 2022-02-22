@@ -1,4 +1,4 @@
-package calculations
+package bulks
 
 import (
 	"context"
