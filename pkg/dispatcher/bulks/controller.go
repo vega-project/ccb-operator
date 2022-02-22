@@ -92,7 +92,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 	workerpool := &workersv1.WorkerPool{}
 	if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
-		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", req.Name, req.Namespace, err)
+		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, req.Namespace, err)
 	}
 
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
