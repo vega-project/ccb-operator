@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
-	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
@@ -45,16 +44,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 
-	cache := mgr.GetCache()
-	indexFunc := func(obj ctrlruntimeclient.Object) []string {
-		return []string{string(obj.(*v1.Calculation).Phase)}
-	}
-
-	if err := cache.IndexField(ctx, &bulkv1.CalculationBulk{}, "phase", indexFunc); err != nil {
-		return fmt.Errorf("failed to construct the indexing fields for the cache")
-	}
-
-	if err := c.Watch(source.NewKindWithCache(&bulkv1.CalculationBulk{}, cache), calculationBulkHandler(), predicateFuncs); err != nil {
+	if err := c.Watch(source.NewKindWithCache(&bulkv1.CalculationBulk{}, mgr.GetCache()), calculationBulkHandler(), predicateFuncs); err != nil {
 		return fmt.Errorf("failed to create watch for Calculations: %w", err)
 	}
 
