@@ -18,7 +18,9 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -67,6 +69,37 @@ func (s *server) createCalculation(c *gin.Context) {
 	}
 }
 
+func (s *server) createCalculationBulk(c *gin.Context) {
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		responseError(c, "couldn't read body", err)
+		return
+	}
+
+	bulkName := fmt.Sprintf("bulk-%s", util.InputHash(body))
+	var bulkCalcs struct {
+		WorkerPool   string                        `json:"worker_pool,omitempty"`
+		Calculations map[string]bulkv1.Calculation `json:"calculations,omitempty"`
+	}
+
+	if err := json.Unmarshal(body, &bulkCalcs); err != nil {
+		responseError(c, "couldn't unmarshal body", err)
+	}
+
+	s.logger.Info("Creating calculation bulk...")
+	bulk := &bulkv1.CalculationBulk{
+		ObjectMeta:   metav1.ObjectMeta{Name: bulkName, Namespace: s.namespace},
+		Calculations: bulkCalcs.Calculations,
+		WorkerPool:   bulkCalcs.WorkerPool,
+	}
+
+	if err := s.client.Create(s.ctx, bulk); err != nil {
+		responseError(c, "couldn't create calculation", err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": bulk})
+	}
+}
+
 func (s *server) deleteCalculation(c *gin.Context) {
 	calcID := c.Param("id")
 	calc := &v1.Calculation{}
@@ -79,6 +112,29 @@ func (s *server) deleteCalculation(c *gin.Context) {
 		responseError(c, "couldn't delete calculation", err)
 	} else {
 		c.JSON(http.StatusOK, response(fmt.Sprintf("calculation %q has been deleted", calcID), http.StatusOK))
+	}
+}
+
+func (s *server) getCalculationBulks(c *gin.Context) {
+	s.logger.WithFields(logrus.Fields{"host": c.Request.Host, "url": c.Request.URL, "method": c.Request.Method, "user-agent": c.Request.UserAgent()}).Info("getting calculations")
+
+	var bulkList bulkv1.CalculationBulkList
+	if err := s.client.List(s.ctx, &bulkList); err != nil {
+		responseError(c, "couldn't get calculations list", err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": bulkList})
+	}
+}
+
+func (s *server) getCalculationBulkByName(c *gin.Context) {
+	bulkID := c.Param("id")
+
+	bulk := &bulkv1.CalculationBulk{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: bulkID}, bulk)
+	if err != nil {
+		responseError(c, fmt.Sprintf("failed to get calculation bulk %s", bulkID), err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": bulk})
 	}
 }
 
