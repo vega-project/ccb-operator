@@ -20,6 +20,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fakectrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -154,7 +155,6 @@ func TestCreateCalculation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.Header.Set("Content-Type", "application/json")
 
 		r := gin.Default()
 		r.POST("/calculations/create", s.createCalculation)
@@ -573,6 +573,216 @@ func TestGetCalculation(t *testing.T) {
 		}
 
 		if diff := cmp.Diff(tc.expected, actualData.Data, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+			t.Fatal(diff)
+		}
+	}
+}
+
+func TestGetCalculationBulkByName(t *testing.T) {
+	testCases := []struct {
+		id                      string
+		name                    string
+		initialCalculationBulks []ctrlruntimeclient.Object
+		expected                *bulkv1.CalculationBulk
+		errorExpected           bool
+	}{
+		{
+			id:   "one calculation returns",
+			name: "test-bulk",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					WorkerPool: "test-worker-pool",
+				},
+			},
+			expected: &bulkv1.CalculationBulk{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+				WorkerPool: "test-worker-pool",
+			},
+		},
+		{
+			id:   "get calculation with wrong name",
+			name: "test-bulk",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk-another", Namespace: "vega"},
+					WorkerPool: "test-worker-pool",
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialCalculationBulks...).Build()
+
+		s := server{
+			logger:    logrus.WithField("test-name", tc.id),
+			ctx:       context.Background(),
+			client:    fakeClient,
+			namespace: "vega",
+		}
+
+		req, err := http.NewRequest("GET", fmt.Sprintf("/bulk/%s", tc.name), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		r := gin.Default()
+		r.GET("/bulk/:id", s.getCalculationBulkByName)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Result().StatusCode == http.StatusOK && tc.errorExpected {
+			t.Fatal("expected error, got 200")
+		}
+
+		if rr.Result().StatusCode != http.StatusOK && !tc.errorExpected {
+			t.Fatalf("didn't expected error, got %s", rr.Body.Bytes())
+		}
+
+		var actualData struct {
+			Data *bulkv1.CalculationBulk `json:"data,omitempty"`
+		}
+
+		if err := json.Unmarshal(rr.Body.Bytes(), &actualData); err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expected, actualData.Data,
+			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
+			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+			t.Fatal(diff)
+		}
+	}
+}
+
+func TestCreateCalculationBulk(t *testing.T) {
+	testCases := []struct {
+		id           string
+		body         string
+		initialBulks []ctrlruntimeclient.Object
+		expected     []bulkv1.CalculationBulk
+	}{
+		{
+			id: "no initial calculations in cluster",
+			body: `{
+				"worker_pool": "vega-pool",
+				"calculations": {
+					"calc-test-1": {
+						"params": {
+							"log_g": 4,
+							"teff": 10100
+						}
+					},
+					"calc-test-2": {
+						"params": {
+							"log_g": 4,
+							"teff": 10200
+						}
+					},
+					"calc-test-3": {
+						"params": {
+							"log_g": 4,
+							"teff": 10300
+						}
+					}
+				}
+			}`,
+			expected: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-rcmmg0k8fjkpb29b"},
+					WorkerPool: "vega-pool",
+					Calculations: map[string]bulkv1.Calculation{
+						"calc-test-1": {Params: bulkv1.Params{Teff: 10100, LogG: 4.0}},
+						"calc-test-2": {Params: bulkv1.Params{Teff: 10200, LogG: 4.0}},
+						"calc-test-3": {Params: bulkv1.Params{Teff: 10300, LogG: 4.0}},
+					},
+				},
+			},
+		},
+		{
+			id: "initial calculations in cluster",
+			initialBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{ObjectMeta: metav1.ObjectMeta{Name: "bulk-12345"}},
+			},
+			body: `{
+				"worker_pool": "vega-pool",
+				"calculations": {
+					"calc-test-1": {
+						"params": {
+							"log_g": 4,
+							"teff": 10100
+						}
+					},
+					"calc-test-2": {
+						"params": {
+							"log_g": 4,
+							"teff": 10200
+						}
+					},
+					"calc-test-3": {
+						"params": {
+							"log_g": 4,
+							"teff": 10300
+						}
+					}
+				}
+			}`,
+			expected: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-12345"},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-rcmmg0k8fjkpb29b"},
+					WorkerPool: "vega-pool",
+					Calculations: map[string]bulkv1.Calculation{
+						"calc-test-1": {Params: bulkv1.Params{Teff: 10100, LogG: 4.0}},
+						"calc-test-2": {Params: bulkv1.Params{Teff: 10200, LogG: 4.0}},
+						"calc-test-3": {Params: bulkv1.Params{Teff: 10300, LogG: 4.0}},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialBulks...).Build()
+		s := server{
+			logger: logrus.WithField("test-name", tc.id),
+			ctx:    context.Background(),
+			client: fakeClient,
+		}
+
+		req, err := http.NewRequest("POST", "/bulk/create", bytes.NewBuffer([]byte(tc.body)))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		r := gin.Default()
+		r.POST("/bulk/create", s.createCalculationBulk)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		var actualData struct {
+			Data *bulkv1.CalculationBulk `json:"data,omitempty"`
+		}
+
+		if err := json.Unmarshal(rr.Body.Bytes(), &actualData); err != nil {
+			t.Fatal(err)
+		}
+
+		var bulkList bulkv1.CalculationBulkList
+		if err := fakeClient.List(s.ctx, &bulkList); err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expected, bulkList.Items,
+			cmpopts.IgnoreFields(metav1.Time{}, "Time"),
+			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" {
 			t.Fatal(diff)
 		}
 	}

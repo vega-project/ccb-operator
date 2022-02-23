@@ -77,14 +77,18 @@ func main() {
 	r.Use(gin.Recovery())
 
 	r.GET("/calculations", s.getCalculations)
+	r.POST("/calculations/create", s.createCalculation)
+	r.DELETE("/calculations/delete/:id", s.deleteCalculation)
+
 	r.GET("/calculation", s.getCalculation)
 	r.GET("/calculation/:id", s.getCalculationByName)
 
+	r.GET("/bulks", s.getCalculationBulks)
+	r.GET("/bulk/:id", s.getCalculationBulkByName)
+	r.POST("/bulk/create", s.createCalculationBulk)
+
 	r.GET("/calculations/results", s.getCalculationResults)
 	r.GET("/calculations/results/:id", s.getCalculationResultsByID)
-
-	r.POST("/calculations/create", s.createCalculation)
-	r.DELETE("/calculations/delete/:id", s.deleteCalculation)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
