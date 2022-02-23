@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,21 +72,24 @@ func main() {
 		namespace:   o.namespace,
 	}
 
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/calculations", s.getCalculations)
-	router.HandleFunc("/calculation/{id}", s.getCalculationByName)
-	router.HandleFunc("/calculation", s.getCalculation)
-	router.HandleFunc("/calculations/create", s.createCalculation)
-	router.HandleFunc("/calculations/delete/{id}", s.deleteCalculation)
-	router.HandleFunc("/calculations/results", s.getCalculationResults)
-	router.HandleFunc("/calculations/results/{id}", s.getCalculationResultsByID)
+	r := gin.New()
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
 
-	router.HandleFunc("/healthz", func(rw http.ResponseWriter, r *http.Request) {
-		rw.WriteHeader(200)
-		rw.Write([]byte("OK"))
+	r.GET("/calculations", s.getCalculations)
+	r.GET("/calculation", s.getCalculation)
+	r.GET("/calculation/:id", s.getCalculationByName)
+
+	r.GET("/calculations/results", s.getCalculationResults)
+	r.GET("/calculations/results/:id", s.getCalculationResultsByID)
+
+	r.POST("/calculations/create", s.createCalculation)
+	r.DELETE("/calculations/delete/:id", s.deleteCalculation)
+
+	r.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "OK"})
 	})
 
 	logrus.Infof("Listening on %d port", o.port)
-	logrus.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", o.port), router))
-
+	logrus.Fatal(r.Run(fmt.Sprintf(":%d", o.port)))
 }
