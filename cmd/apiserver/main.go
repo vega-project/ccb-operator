@@ -87,6 +87,8 @@ func main() {
 	r.GET("/bulk/:id", s.getCalculationBulkByName)
 	r.POST("/bulk/create", s.createCalculationBulk)
 
+	r.GET("/workerpools", s.getWorkerPools)
+
 	r.GET("/calculations/results", s.getCalculationResults)
 	r.GET("/calculations/results/:id", s.getCalculationResultsByID)
 
