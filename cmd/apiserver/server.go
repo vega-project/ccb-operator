@@ -22,6 +22,7 @@ import (
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -268,6 +269,17 @@ func (s *server) getCalculationResults(c *gin.Context) {
 	}
 
 	s.sendResults(c, t, l)
+}
+
+func (s *server) getWorkerPools(c *gin.Context) {
+	s.logger.WithFields(logrus.Fields{"host": c.Request.Host, "url": c.Request.URL, "method": c.Request.Method, "user-agent": c.Request.UserAgent()}).Info("getting workerpools")
+
+	var workerPoolList workersv1.WorkerPoolList
+	if err := s.client.List(s.ctx, &workerPoolList); err != nil {
+		responseError(c, "couldn't get workerpool list", err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": workerPoolList})
+	}
 }
 
 func response(message string, statusCode int) gin.H {

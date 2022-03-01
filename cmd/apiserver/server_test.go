@@ -22,6 +22,7 @@ import (
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -783,6 +784,173 @@ func TestCreateCalculationBulk(t *testing.T) {
 			cmpopts.IgnoreFields(metav1.Time{}, "Time"),
 			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
 			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" {
+			t.Fatal(diff)
+		}
+	}
+}
+
+func TestGetWorkerPools(t *testing.T) {
+	testCases := []struct {
+		id                 string
+		initialWorkerPools []ctrlruntimeclient.Object
+		expected           []workersv1.WorkerPool
+	}{
+		{
+			id: "get no workerpool",
+		},
+		{
+			id: "get one workerpool",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   &metav1.Time{},
+						PendingTime:    &metav1.Time{},
+						CompletionTime: &metav1.Time{},
+					},
+				},
+			},
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   nil,
+						PendingTime:    nil,
+						CompletionTime: nil,
+					},
+				},
+			},
+		},
+		{
+			id: "get two workerpools",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-2"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   &metav1.Time{},
+						PendingTime:    &metav1.Time{},
+						CompletionTime: &metav1.Time{},
+					},
+				},
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-3"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   &metav1.Time{},
+						PendingTime:    &metav1.Time{},
+						CompletionTime: &metav1.Time{},
+					},
+				},
+			},
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-2"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   nil,
+						PendingTime:    nil,
+						CompletionTime: nil,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-3"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{
+							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
+						},
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
+						},
+					},
+					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "1.0"},
+					Status: workersv1.WorkerPoolStatus{
+						CreationTime:   nil,
+						PendingTime:    nil,
+						CompletionTime: nil,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialWorkerPools...).Build()
+
+		s := server{
+			logger: logrus.WithField("test-name", tc.id),
+			ctx:    context.Background(),
+			client: fakeClient,
+		}
+
+		req, err := http.NewRequest("GET", "/workerpools", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		r := gin.Default()
+		r.GET("/workerpools", s.getWorkerPools)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v",
+				status, http.StatusOK)
+		}
+
+		var actualData struct {
+			Data *workersv1.WorkerPoolList `json:"data,omitempty"`
+		}
+
+		err = json.Unmarshal(rr.Body.Bytes(), &actualData)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expected, actualData.Data.Items, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
 			t.Fatal(diff)
 		}
 	}
