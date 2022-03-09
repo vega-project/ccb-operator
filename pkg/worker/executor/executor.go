@@ -134,7 +134,7 @@ func (e *Executor) Run() {
 						e.logger.WithError(err).Error("couldn't generate the Synspec's Runtime input file")
 						break
 					}
-					time.Sleep(time.Second * 2)
+
 				}
 
 				var status v1.CalculationPhase
