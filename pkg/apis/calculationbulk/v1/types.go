@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -23,6 +24,7 @@ type Calculation struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Params Params                          `json:"params,omitempty"`
+	Steps  []v1.Step                       `json:"steps,omitempty"`
 	Phase  calculationsv1.CalculationPhase `json:"phase,omitempty"`
 }
 
