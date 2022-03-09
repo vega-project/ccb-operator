@@ -336,8 +336,6 @@ func recreateVarsLine(lineValues []string) string {
 
 func generateSynspecInputRuntimeFile(calcPath, templateFile, outFile string, teff, logG float64) error {
 	template := filepath.Join(calcPath, templateFile)
-	fort95File := filepath.Join(calcPath, fort95Filename)
-
 	synspecInputFile := filepath.Join(calcPath, outFile)
 	data, err := ioutil.ReadFile(template)
 	if err != nil {
@@ -354,10 +352,6 @@ func generateSynspecInputRuntimeFile(calcPath, templateFile, outFile string, tef
 	}
 
 	if err := ioutil.WriteFile(synspecInputFile, contents, 0777); err != nil {
-		return fmt.Errorf("couldn't generate the new input file: %v", err)
-	}
-
-	if err := ioutil.WriteFile(fort95File, contents, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %v", err)
 	}
 
