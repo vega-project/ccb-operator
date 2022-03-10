@@ -11,6 +11,7 @@ import (
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fakectrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -40,7 +41,13 @@ func (s *simulator) initialize(ctx context.Context) {
 	teff := 10000
 	for teff != 10000+s.dryCalculationsTotal {
 		teff++
-		newCalc := util.NewCalculation(float64(teff), 4.0)
+		c := &bulkv1.Calculation{
+			Params: bulkv1.Params{
+				Teff: float64(teff),
+				LogG: 4.0,
+			},
+		}
+		newCalc := util.NewCalculation(c)
 		s.dryCalcList = append(s.dryCalcList, newCalc)
 	}
 

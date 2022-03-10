@@ -33,20 +33,60 @@ func init() {
 func TestCreateCalculation(t *testing.T) {
 	testCases := []struct {
 		id                  string
-		teff                float64
-		logG                float64
+		params              bulkv1.Params
+		steps               []v1.Step
+		phase               v1.CalculationPhase
 		initialCalculations []ctrlruntimeclient.Object
 		expected            []v1.Calculation
 	}{
 		{
-			id:   "no initial calculations in cluster, one calculation gets created",
-			teff: 12100.0,
-			logG: 4.0,
+			id: "no initial calculations in cluster, one calculation gets created",
+			params: bulkv1.Params{
+				Teff: 12100.0,
+				LogG: 4.0,
+			},
+			steps: []v1.Step{
+				{
+					Command: "atlas12_ada",
+					Args:    []string{"s"},
+				},
+				{
+					Command: "atlas12_ada",
+					Args:    []string{"r"},
+				},
+				{
+					Command: "synspec49",
+					Args:    []string{"<", "input_tlusty_fortfive"},
+				},
+			},
+			phase: v1.CreatedPhase,
 			expected: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: fmt.Sprintf("calc-%s", util.InputHash([]byte(fmt.Sprintf("%f", 12100.0)), []byte(fmt.Sprintf("%f", 4.0))))},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: util.GetCalculationName(
+						bulkv1.Calculation{
+							Params: bulkv1.Params{
+								Teff: 12100.0,
+								LogG: 4.0,
+							},
+							Steps: []v1.Step{
+								{
+									Command: "atlas12_ada",
+									Args:    []string{"s"},
+								},
+								{
+									Command: "atlas12_ada",
+									Args:    []string{"r"},
+								},
+								{
+									Command: "synspec49",
+									Args:    []string{"<", "input_tlusty_fortfive"},
+								},
+							},
+							Phase: v1.CreatedPhase,
+						},
+					)},
+					Phase:  v1.CreatedPhase,
+					Status: v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
 					Spec: v1.CalculationSpec{Teff: 12100.0, LogG: 4.0, Steps: []v1.Step{
 						{
 							Command: "atlas12_ada",
@@ -65,12 +105,29 @@ func TestCreateCalculation(t *testing.T) {
 			},
 		},
 		{
-			id:   "one calculation gets created, one already exists in cluster",
-			teff: 14100.0,
-			logG: 4.0,
+			id: "one calculation gets created, one already exists in cluster",
+			params: bulkv1.Params{
+				Teff: 14100.0,
+				LogG: 4.0,
+			},
+			steps: []v1.Step{
+				{
+					Command: "atlas12_ada",
+					Args:    []string{"s"},
+				},
+				{
+					Command: "atlas12_ada",
+					Args:    []string{"r"},
+				},
+				{
+					Command: "synspec49",
+					Args:    []string{"<", "input_tlusty_fortfive"},
+				},
+			},
+			phase: v1.ProcessingPhase,
 			initialCalculations: []ctrlruntimeclient.Object{
 				&v1.Calculation{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: fmt.Sprintf("calc-%s", util.InputHash([]byte(fmt.Sprintf("%f", 15100.0)), []byte(fmt.Sprintf("%f", 4.0))))},
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: "calc-initial-1"},
 					Phase:      v1.CreatedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
 					Spec: v1.CalculationSpec{Teff: 15100.0, LogG: 4.0, Steps: []v1.Step{
@@ -91,10 +148,32 @@ func TestCreateCalculation(t *testing.T) {
 			},
 			expected: []v1.Calculation{
 				{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: fmt.Sprintf("calc-%s", util.InputHash([]byte(fmt.Sprintf("%f", 15100.0)), []byte(fmt.Sprintf("%f", 4.0))))},
-					Phase:      v1.CreatedPhase,
-					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
-					Spec: v1.CalculationSpec{Teff: 15100.0, LogG: 4.0, Steps: []v1.Step{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: util.GetCalculationName(
+						bulkv1.Calculation{
+							Params: bulkv1.Params{
+								Teff: 14100.0,
+								LogG: 4.0,
+							},
+							Steps: []v1.Step{
+								{
+									Command: "atlas12_ada",
+									Args:    []string{"s"},
+								},
+								{
+									Command: "atlas12_ada",
+									Args:    []string{"r"},
+								},
+								{
+									Command: "synspec49",
+									Args:    []string{"<", "input_tlusty_fortfive"},
+								},
+							},
+							Phase: v1.ProcessingPhase,
+						},
+					)},
+					Phase:  v1.CreatedPhase,
+					Status: v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
+					Spec: v1.CalculationSpec{Teff: 14100.0, LogG: 4.0, Steps: []v1.Step{
 						{
 							Command: "atlas12_ada",
 							Args:    []string{"s"},
@@ -110,10 +189,10 @@ func TestCreateCalculation(t *testing.T) {
 					}},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: fmt.Sprintf("calc-%s", util.InputHash([]byte(fmt.Sprintf("%f", 14100.0)), []byte(fmt.Sprintf("%f", 4.0))))},
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"created_by_human": "true"}, Name: "calc-initial-1"},
 					Phase:      v1.CreatedPhase,
 					Status:     v1.CalculationStatus{StartTime: metav1.Time{Time: time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)}},
-					Spec: v1.CalculationSpec{Teff: 14100.0, LogG: 4.0, Steps: []v1.Step{
+					Spec: v1.CalculationSpec{Teff: 15100.0, LogG: 4.0, Steps: []v1.Step{
 						{
 							Command: "atlas12_ada",
 							Args:    []string{"s"},
@@ -134,8 +213,9 @@ func TestCreateCalculation(t *testing.T) {
 
 	for _, tc := range testCases {
 		var calc struct {
-			Teff string
-			LogG string
+			Params bulkv1.Params       `json:"params,omitempty"`
+			Steps  []v1.Step           `json:"steps,omitempty"`
+			Phase  v1.CalculationPhase `json:"phase,omitempty"`
 		}
 
 		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialCalculations...).Build()
@@ -145,9 +225,11 @@ func TestCreateCalculation(t *testing.T) {
 			client: fakeClient,
 		}
 
-		calc.Teff = fmt.Sprintf("%v", tc.teff)
-		calc.LogG = fmt.Sprintf("%v", tc.logG)
-		data, err := json.Marshal(calc)
+		calc.Params.Teff = tc.params.Teff
+		calc.Params.LogG = tc.params.LogG
+		calc.Steps = tc.steps
+		calc.Phase = tc.phase
+		data, err := json.Marshal(&calc)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,7 +245,10 @@ func TestCreateCalculation(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		var actualData *v1.Calculation
+		var actualData struct {
+			Data *v1.Calculation `json:"data,omitempty"`
+		}
+
 		err = json.Unmarshal(rr.Body.Bytes(), &actualData)
 		if err != nil {
 			t.Fatal(err)

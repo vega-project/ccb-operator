@@ -112,7 +112,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 				for name, calculation := range bulk.Calculations {
 					// we assume that if the phase is empty, then the calculation haven't yet been processed.
 					if calculation.Phase == "" {
-						calc := util.NewCalculation(calculation.Params.Teff, calculation.Params.LogG)
+						calc := util.NewCalculation(&calculation)
 						calc.Assign = worker.Name
 						calc.Namespace = req.Namespace
 						calc.Labels = map[string]string{

@@ -37,30 +37,16 @@ type server struct {
 func (s *server) createCalculation(c *gin.Context) {
 	decoder := json.NewDecoder(c.Request.Body)
 
-	var calc struct {
-		Teff string `json:"teff"`
-		LogG string `json:"logG"`
-	}
-	err := decoder.Decode(&calc)
+	var calculationObject bulkv1.Calculation
+
+	err := decoder.Decode(&calculationObject)
 	if err != nil {
 		responseError(c, "couldn't decode json params", err)
 		return
 	}
 
-	t, err := strconv.ParseFloat(calc.Teff, 64)
-	if err != nil {
-		responseError(c, "couldn't parse teff as a float number", err)
-		return
-	}
-
-	l, err := strconv.ParseFloat(calc.LogG, 64)
-	if err != nil {
-		responseError(c, "couldn't parse logG as a float number", err)
-		return
-	}
-
-	s.logger.WithField("teff", t).WithField("logG", l).Info("Creating calculation...")
-	calculation := util.NewCalculation(t, l)
+	s.logger.WithField("teff", calculationObject.Params.Teff).WithField("logG", calculationObject.Params.LogG).Info("Creating calculation...")
+	calculation := util.NewCalculation(&calculationObject)
 	calculation.Labels = map[string]string{"created_by_human": "true"}
 	calculation.Namespace = s.namespace
 	if err := s.client.Create(s.ctx, calculation); err != nil {
