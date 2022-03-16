@@ -22,6 +22,7 @@ import (
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 func init() {
@@ -71,8 +72,15 @@ func TestReconcile(t *testing.T) {
 			name: "basic case, one free worker",
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
-					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					Calculations: map[string]bulkv1.Calculation{"test-calc": {
+						Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0},
+						Steps: []v1.Step{
+							{Command: "atlas12_ada", Args: []string{"s"}},
+							{Command: "atlas12_ada", Args: []string{"r"}},
+							{Command: "synspec49", Args: []string{"<", "input_tlusty_fortfive"}},
+						},
+					}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
@@ -97,7 +105,28 @@ func TestReconcile(t *testing.T) {
 			expectedCalculations: []v1.Calculation{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "calc-xc864fxvd5xccn6x",
+						Name: util.GetCalculationName(
+							bulkv1.Calculation{
+								Params: bulkv1.Params{
+									Teff: 10000.0,
+									LogG: 4.0,
+								},
+								Steps: []v1.Step{
+									{
+										Command: "atlas12_ada",
+										Args:    []string{"s"},
+									},
+									{
+										Command: "atlas12_ada",
+										Args:    []string{"r"},
+									},
+									{
+										Command: "synspec49",
+										Args:    []string{"<", "input_tlusty_fortfive"},
+									},
+								},
+							},
+						),
 						Namespace: "vega",
 						Labels: map[string]string{
 							"vegaproject.io/bulk":            "test-bulk",
@@ -150,7 +179,14 @@ func TestReconcile(t *testing.T) {
 			expectedCalculations: []v1.Calculation{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "calc-xc864fxvd5xccn6x",
+						Name: util.GetCalculationName(
+							bulkv1.Calculation{
+								Params: bulkv1.Params{
+									Teff: 10000.0,
+									LogG: 4.0,
+								},
+							},
+						),
 						Namespace: "vega",
 						Labels: map[string]string{
 							"vegaproject.io/bulk":            "test-bulk",
@@ -163,11 +199,6 @@ func TestReconcile(t *testing.T) {
 					Spec: v1.CalculationSpec{
 						Teff: 10000,
 						LogG: 4,
-						Steps: []v1.Step{
-							{Command: "atlas12_ada", Args: []string{"s"}},
-							{Command: "atlas12_ada", Args: []string{"r"}},
-							{Command: "synspec49", Args: []string{"<", "input_tlusty_fortfive"}},
-						},
 					},
 				},
 			},

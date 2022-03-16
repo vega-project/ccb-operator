@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/sirupsen/logrus"
+	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -28,7 +29,13 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			id: "no new labels to update",
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
-					c := util.NewCalculation(1000, 4.0)
+					calc := &bulkv1.Calculation{
+						Params: bulkv1.Params{
+							LogG: 4.0,
+							Teff: 1000,
+						},
+					}
+					c := util.NewCalculation(calc)
 					return c
 				}(),
 			},
@@ -37,7 +44,13 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			id: "new label to update",
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
-					c := util.NewCalculation(1000, 4.0)
+					calc := &bulkv1.Calculation{
+						Params: bulkv1.Params{
+							LogG: 4.0,
+							Teff: 1000,
+						},
+					}
+					c := util.NewCalculation(calc)
 					return c
 				}(),
 			},
@@ -48,7 +61,13 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			id: "new labels to update",
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
-					c := util.NewCalculation(1000, 4.0)
+					calc := &bulkv1.Calculation{
+						Params: bulkv1.Params{
+							LogG: 4.0,
+							Teff: 1000,
+						},
+					}
+					c := util.NewCalculation(calc)
 					return c
 				}(),
 			},
@@ -59,7 +78,13 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			id: "new labels to update, calc has existing labels",
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
-					c := util.NewCalculation(1000, 4.0)
+					calc := &bulkv1.Calculation{
+						Params: bulkv1.Params{
+							LogG: 4.0,
+							Teff: 1000,
+						},
+					}
+					c := util.NewCalculation(calc)
 					c.Labels = map[string]string{"existing-label": "true", "existing-label2": "true"}
 					return c
 				}(),
@@ -75,7 +100,13 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			id: "new labels to update and overwrite, calc has existing labels",
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
-					c := util.NewCalculation(1000, 4.0)
+					calc := &bulkv1.Calculation{
+						Params: bulkv1.Params{
+							LogG: 4.0,
+							Teff: 1000,
+						},
+					}
+					c := util.NewCalculation(calc)
 					c.Labels = map[string]string{"existing-label": "true", "existing-label2": "true"}
 					return c
 				}(),
