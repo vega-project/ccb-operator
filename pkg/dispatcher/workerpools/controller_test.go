@@ -185,6 +185,20 @@ func TestReconcile(t *testing.T) {
 									Teff: 10000.0,
 									LogG: 4.0,
 								},
+								Steps: []v1.Step{
+									{
+										Command: "atlas12_ada",
+										Args:    []string{"s"},
+									},
+									{
+										Command: "atlas12_ada",
+										Args:    []string{"r"},
+									},
+									{
+										Command: "synspec49",
+										Args:    []string{"<", "input_tlusty_fortfive"},
+									},
+								},
 							},
 						),
 						Namespace: "vega",
@@ -199,6 +213,20 @@ func TestReconcile(t *testing.T) {
 					Spec: v1.CalculationSpec{
 						Teff: 10000,
 						LogG: 4,
+						Steps: []v1.Step{
+							{
+								Command: "atlas12_ada",
+								Args:    []string{"s"},
+							},
+							{
+								Command: "atlas12_ada",
+								Args:    []string{"r"},
+							},
+							{
+								Command: "synspec49",
+								Args:    []string{"<", "input_tlusty_fortfive"},
+							},
+						},
 					},
 				},
 			},
