@@ -13,6 +13,23 @@ import (
 // NewCalculation gets the values of teff and logG and creates a calculation
 // with its minumum values
 func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
+	if len(calc.Steps) == 0 {
+		calc.Steps = []v1.Step{
+			{
+				Command: "atlas12_ada",
+				Args:    []string{"s"},
+			},
+			{
+				Command: "atlas12_ada",
+				Args:    []string{"r"},
+			},
+			{
+				Command: "synspec49",
+				Args:    []string{"<", "input_tlusty_fortfive"},
+			},
+		}
+	}
+
 	calcSpec := v1.CalculationSpec{
 		Teff:  calc.Params.Teff,
 		LogG:  calc.Params.LogG,
