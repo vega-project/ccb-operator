@@ -144,7 +144,7 @@ func (e *Executor) Run() {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 				defer cancel()
 
-				cmd := exec.CommandContext(ctx, step.command, strings.Join(step.args, " "))
+				cmd := exec.CommandContext(ctx, step.command, step.args...)
 				cmd.Dir = calcPath
 
 				fields := logrus.Fields{"command": cmd.Args, "step": index}
