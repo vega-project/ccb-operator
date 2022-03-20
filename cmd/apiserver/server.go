@@ -76,8 +76,9 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 	s.logger.Info("Creating calculation bulk...")
 	bulk := &bulkv1.CalculationBulk{
 		ObjectMeta:   metav1.ObjectMeta{Name: bulkName, Namespace: s.namespace},
-		Calculations: bulkCalcs.Calculations,
 		WorkerPool:   bulkCalcs.WorkerPool,
+		Calculations: bulkCalcs.Calculations,
+		Status:       bulkv1.CalculationBulkStatus{State: bulkv1.CalculationBulkAvailableState},
 	}
 
 	if err := s.client.Create(s.ctx, bulk); err != nil {
