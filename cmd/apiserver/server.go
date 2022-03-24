@@ -71,6 +71,28 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 
 	if err := json.Unmarshal(body, &bulkCalcs); err != nil {
 		responseError(c, "couldn't unmarshal body", err)
+		return
+	}
+
+	if bulkCalcs.WorkerPool == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "WorkerPool name not specified in the input file", "status_code": http.StatusBadRequest})
+		return
+	}
+
+	if len(bulkCalcs.Calculations) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Bulk contains no calculations", "status_code": http.StatusBadRequest})
+		return
+	}
+
+	for _, calculation := range bulkCalcs.Calculations {
+		if calculation.Params.Teff == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Teff value not specified", "status_code": http.StatusBadRequest})
+			return
+		}
+		if calculation.Params.LogG == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "LogG value not specified", "status_code": http.StatusBadRequest})
+			return
+		}
 	}
 
 	s.logger.Info("Creating calculation bulk...")
