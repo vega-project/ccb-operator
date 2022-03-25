@@ -106,6 +106,10 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 				bulk := &bulkv1.CalculationBulk{}
 				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: firstBulk.Name}, bulk); err != nil {
+					delete(workerpool.Spec.CalculationBulks, firstBulk.Name)
+					if errUpdate := r.client.Update(ctx, workerpool); errUpdate != nil {
+						return fmt.Errorf("couldn't update workerpool's bulks %w", errUpdate)
+					}
 					return fmt.Errorf("couldn't get calculationbulk %w", err)
 				}
 
