@@ -84,7 +84,13 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 		return
 	}
 
+	emptyBulkParams := bulkv1.Params{}
+
 	for _, calculation := range bulkCalcs.Calculations {
+		if calculation.Params == emptyBulkParams {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Params field omitted in the input file", "status_code": http.StatusBadRequest})
+			return
+		}
 		if calculation.Params.Teff == 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"message": "Teff value not specified", "status_code": http.StatusBadRequest})
 			return

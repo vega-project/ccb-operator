@@ -790,6 +790,33 @@ func TestCreateCalculationBulk(t *testing.T) {
 			},
 		},
 		{
+			id: "no initial calculations in cluster, params of the calculation are omitted",
+			body: `{
+				"worker_pool": "vega-workers",
+				"calculations": {
+					"calc-test-1": {
+						"steps": [{
+							"command": "command1",
+							"args": [
+								"one",
+								"two"
+							]
+						}]
+					},
+					"calc-test-2": {
+						"steps": [{
+							"command": "command2",
+							"args": [
+								"three",
+								"four"
+							]
+						}]
+					}
+				}
+			}`,
+			expected: nil,
+		},
+		{
 			id: "initial calculations in cluster",
 			initialBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{ObjectMeta: metav1.ObjectMeta{Name: "bulk-12345"}},
