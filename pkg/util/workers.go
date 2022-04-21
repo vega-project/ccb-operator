@@ -1,7 +1,15 @@
 package util
 
 import (
+	"context"
+	"fmt"
 	"sort"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
+
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
@@ -46,4 +54,35 @@ func GetFirstCalculationBulk(bulks map[string]workersv1.CalculationBulk) *worker
 	}
 
 	return &ret[0]
+}
+
+func UpdateWorkerStatusInPool(ctx context.Context, client ctrlruntimeclient.Client, workerPool, nodename, namespace string, state workersv1.WorkerState) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &workersv1.WorkerPool{}
+		err := client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool)
+		if err != nil {
+			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", workerPool, namespace, err)
+		}
+
+		now := time.Now()
+		worker, exists := pool.Spec.Workers[nodename]
+		if exists {
+			if worker.LastUpdateTime != nil {
+				worker.LastUpdateTime.Time = now
+			} else {
+				worker.LastUpdateTime = &metav1.Time{Time: now}
+			}
+			worker.State = state
+		}
+
+		pool.Spec.Workers[nodename] = worker
+		if err := client.Update(ctx, pool); err != nil {
+			return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

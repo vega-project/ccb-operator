@@ -68,8 +68,8 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan executor.Result)
 	calcErrorChan := make(chan string)
 
-	op.executor = executor.NewExecutor(executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
-		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile)
+	op.executor = executor.NewExecutor(op.ctx, executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
+		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile, op.nodename, op.namespace, op.workerPool)
 
 	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
 		DryRunClient: op.dryRun,

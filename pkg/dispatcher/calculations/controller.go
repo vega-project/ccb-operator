@@ -3,11 +3,14 @@ package calculations
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -118,6 +121,29 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calc)
 	if err != nil {
 		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
+	}
+
+	if calc.Phase == v1.ProcessingPhase {
+		if util.IsFinishedCalculation(calc.Spec.Steps) {
+			phase := util.GetCalculationFinalPhase(calc.Spec.Steps)
+			if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				calculation := &v1.Calculation{}
+				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: calc.Namespace, Name: calc.Name}, calculation); err != nil {
+					return fmt.Errorf("failed to get the calculation: %w", err)
+				}
+
+				calculation.Phase = phase
+				calculation.Status.CompletionTime = &metav1.Time{Time: time.Now()}
+
+				r.logger.WithField("calculation", calculation.Name).Info("Updating calculation phase...")
+				if err := r.client.Update(ctx, calculation); err != nil {
+					return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
+				}
+				return nil
+			}); err != nil {
+				return fmt.Errorf("failed to update the calculation phase: %w", err)
+			}
+		}
 	}
 
 	var bulkName string
