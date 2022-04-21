@@ -71,8 +71,8 @@ func NewExecutor(
 	atlasDataFiles,
 	kuruzModelTemplateFile,
 	synspecInputTemplateFile,
-	namespace,
 	nodename,
+	namespace,
 	workerPool string) *Executor {
 	return &Executor{
 		ctx:                      ctx,
