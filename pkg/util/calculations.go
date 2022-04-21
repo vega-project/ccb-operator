@@ -25,7 +25,7 @@ func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
 			},
 			{
 				Command: "/bin/bash",
-				Args:    []string{"-c", "'synspec49 < input_tlusty_fortfive'"},
+				Args:    []string{"-c", "synspec49 < input_tlusty_fortfive"},
 			},
 		}
 	}
