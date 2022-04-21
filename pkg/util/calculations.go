@@ -50,3 +50,28 @@ func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
 func GetCalculationName(calc bulkv1.Calculation) string {
 	return fmt.Sprintf("calc-%s", InputHash([]byte(fmt.Sprintf("%v", calc))))
 }
+
+func IsFinishedCalculation(steps []v1.Step) bool {
+	for _, step := range steps {
+		if step.Status == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func GetCalculationFinalPhase(steps []v1.Step) v1.CalculationPhase {
+	if hasFailedStep(steps) {
+		return v1.FailedPhase
+	}
+	return v1.CompletedPhase
+}
+
+func hasFailedStep(steps []v1.Step) bool {
+	for _, step := range steps {
+		if step.Status == "Failed" {
+			return true
+		}
+	}
+	return false
+}

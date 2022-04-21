@@ -18,7 +18,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
+	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 const (
@@ -39,6 +43,11 @@ type Executor struct {
 	atlasDataFiles           string
 	kuruzModelTemplateFile   string
 	synspecInputTemplateFile string
+	client                   ctrlruntimeclient.Client
+	ctx                      context.Context
+	nodename                 string
+	namespace                string
+	workerPool               string
 }
 
 // Result ...
@@ -51,8 +60,21 @@ type Result struct {
 }
 
 // NewExecutor ...
-func NewExecutor(executeChan chan *v1.Calculation, calcErrorChan chan string, stepUpdaterChan chan Result, nfsPath, atlasControlFiles, atlasDataFiles, kuruzModelTemplateFile, synspecInputTemplateFile string) *Executor {
+func NewExecutor(
+	ctx context.Context,
+	executeChan chan *v1.Calculation,
+	calcErrorChan chan string,
+	stepUpdaterChan chan Result,
+	nfsPath,
+	atlasControlFiles,
+	atlasDataFiles,
+	kuruzModelTemplateFile,
+	synspecInputTemplateFile,
+	namespace,
+	nodename,
+	workerPool string) *Executor {
 	return &Executor{
+		ctx:                      ctx,
 		executeChan:              executeChan,
 		stepUpdaterChan:          stepUpdaterChan,
 		calcErrorChan:            calcErrorChan,
@@ -61,6 +83,9 @@ func NewExecutor(executeChan chan *v1.Calculation, calcErrorChan chan string, st
 		atlasDataFiles:           atlasDataFiles,
 		kuruzModelTemplateFile:   kuruzModelTemplateFile,
 		synspecInputTemplateFile: synspecInputTemplateFile,
+		nodename:                 nodename,
+		namespace:                namespace,
+		workerPool:               workerPool,
 	}
 }
 
@@ -175,6 +200,12 @@ func (e *Executor) Run() {
 					e.calcErrorChan <- calc.Name
 					break
 				}
+			}
+
+			// All steps finished. Update worker in workerpool
+			if err := util.UpdateWorkerStatusInPool(e.ctx, e.client, e.workerPool, e.nodename, e.namespace, workersv1.WorkerAvailableState); err != nil {
+				// TODO: retry until the state is updated, otherwise the worker will deadlock
+				panic(fmt.Errorf("failed to update worker's state in worker pool: %w", err))
 			}
 		}
 	}
