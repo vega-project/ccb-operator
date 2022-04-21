@@ -62,6 +62,7 @@ type Result struct {
 // NewExecutor ...
 func NewExecutor(
 	ctx context.Context,
+	client ctrlruntimeclient.Client,
 	executeChan chan *v1.Calculation,
 	calcErrorChan chan string,
 	stepUpdaterChan chan Result,
@@ -75,6 +76,7 @@ func NewExecutor(
 	workerPool string) *Executor {
 	return &Executor{
 		ctx:                      ctx,
+		client:                   client,
 		executeChan:              executeChan,
 		stepUpdaterChan:          stepUpdaterChan,
 		calcErrorChan:            calcErrorChan,
