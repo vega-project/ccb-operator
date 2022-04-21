@@ -78,7 +78,7 @@ func TestReconcile(t *testing.T) {
 						Steps: []v1.Step{
 							{Command: "atlas12_ada", Args: []string{"s"}},
 							{Command: "atlas12_ada", Args: []string{"r"}},
-							{Command: "synspec49", Args: []string{"<", "input_tlusty_fortfive"}},
+							{Command: "/bin/bash", Args: []string{"-c", "'synspec49 < input_tlusty_fortfive'"}},
 						},
 					}},
 				},
@@ -121,8 +121,8 @@ func TestReconcile(t *testing.T) {
 										Args:    []string{"r"},
 									},
 									{
-										Command: "synspec49",
-										Args:    []string{"<", "input_tlusty_fortfive"},
+										Command: "/bin/bash",
+										Args:    []string{"-c", "'synspec49 < input_tlusty_fortfive'"},
 									},
 								},
 							},
@@ -142,7 +142,7 @@ func TestReconcile(t *testing.T) {
 						Steps: []v1.Step{
 							{Command: "atlas12_ada", Args: []string{"s"}},
 							{Command: "atlas12_ada", Args: []string{"r"}},
-							{Command: "synspec49", Args: []string{"<", "input_tlusty_fortfive"}},
+							{Command: "/bin/bash", Args: []string{"-c", "'synspec49 < input_tlusty_fortfive'"}},
 						},
 					},
 				},
@@ -195,8 +195,8 @@ func TestReconcile(t *testing.T) {
 										Args:    []string{"r"},
 									},
 									{
-										Command: "synspec49",
-										Args:    []string{"<", "input_tlusty_fortfive"},
+										Command: "/bin/bash",
+										Args:    []string{"-c", "'synspec49 < input_tlusty_fortfive'"},
 									},
 								},
 							},
@@ -223,8 +223,8 @@ func TestReconcile(t *testing.T) {
 								Args:    []string{"r"},
 							},
 							{
-								Command: "synspec49",
-								Args:    []string{"<", "input_tlusty_fortfive"},
+								Command: "/bin/bash",
+								Args:    []string{"-c", "'synspec49 < input_tlusty_fortfive'"},
 							},
 						},
 					},
