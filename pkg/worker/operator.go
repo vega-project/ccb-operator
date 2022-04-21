@@ -68,9 +68,6 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan executor.Result)
 	calcErrorChan := make(chan string)
 
-	op.executor = executor.NewExecutor(op.ctx, executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
-		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile, op.nodename, op.namespace, op.workerPool)
-
 	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
 		DryRunClient: op.dryRun,
 		Logger:       ctrlruntimelog.NullLogger{},
@@ -78,6 +75,9 @@ func (op *Operator) Initialize() error {
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
+
+	op.executor = executor.NewExecutor(op.ctx, mgr.GetClient(), executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
+		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile, op.nodename, op.namespace, op.workerPool)
 
 	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.nodename, op.namespace, op.workerPool)
 	return nil
