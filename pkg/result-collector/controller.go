@@ -46,7 +46,7 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string, calculati
 	}
 
 	predicateFuncs := predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
 		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
@@ -115,35 +115,35 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		if err := os.MkdirAll(resultPath, os.ModePerm); err != nil {
 			return fmt.Errorf("couldn't create result's folder %v", err)
 		}
+	}
 
-		calcPath := filepath.Join(r.calculationsDir, calculation.Name)
+	calcPath := filepath.Join(r.calculationsDir, calculation.Name)
 
-		resultsCopied := true
-		logger.Info("Copying fort-8 result file.")
-		if _, err := copy(filepath.Join(calcPath, "fort.8"), filepath.Join(resultPath, "fort.8")); err != nil {
-			logger.WithError(err).Error("error while copying file")
-			resultsCopied = false
+	resultsCopied := true
+	logger.Info("Copying fort-8 result file.")
+	if _, err := copy(filepath.Join(calcPath, "fort.8"), filepath.Join(resultPath, "fort.8")); err != nil {
+		logger.WithError(err).Error("error while copying file")
+		resultsCopied = false
+	}
+
+	logger.Info("Copying fort-7 result file.")
+	if _, err := copy(filepath.Join(calcPath, "fort.7"), filepath.Join(resultPath, "fort.7")); err != nil {
+		logger.WithError(err).Error("error while copying file")
+		resultsCopied = false
+	}
+
+	if resultsCopied {
+		logger.Warn("Deleting calculation folder")
+		// Remove calculation folder
+		if err := os.RemoveAll(calcPath); err != nil {
+			r.logger.WithError(err).Error("couldn't remove calculation folder")
+			return fmt.Errorf("%v", err)
 		}
 
-		logger.Info("Copying fort-7 result file.")
-		if _, err := copy(filepath.Join(calcPath, "fort.7"), filepath.Join(resultPath, "fort.7")); err != nil {
-			logger.WithError(err).Error("error while copying file")
-			resultsCopied = false
-		}
-
-		if resultsCopied {
-			logger.Warn("Deleting calculation folder")
-			// Remove calculation folder
-			if err := os.RemoveAll(calcPath); err != nil {
-				r.logger.WithError(err).Error("couldn't remove calculation folder")
-				return fmt.Errorf("%v", err)
-			}
-
-			labels := map[string]string{util.ResultsCollected: "true"}
-			if err := r.updateCalculationLabels(ctx, calculation.Name, labels); err != nil {
-				r.logger.WithError(err).Error("couldn't update calculation labels")
-				return fmt.Errorf("%v", err)
-			}
+		labels := map[string]string{util.ResultsCollected: "true"}
+		if err := r.updateCalculationLabels(ctx, calculation.Name, labels); err != nil {
+			r.logger.WithError(err).Error("couldn't update calculation labels")
+			return fmt.Errorf("%v", err)
 		}
 
 	}
