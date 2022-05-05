@@ -98,10 +98,12 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	calculation := &v1.Calculation{}
 	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calculation)
 	if err != nil {
-		return fmt.Errorf("failed to get pod: %s in namespace %s: %w", req.Name, req.Namespace, err)
+		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
+	logger = logger.WithField("calc", calculation.Name)
 
 	if !isCompletedCalculation(calculation.Phase) {
+		logger.Infof("Ignoring calculation with phase: %s", calculation.Phase)
 		return nil
 	}
 
