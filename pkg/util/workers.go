@@ -37,7 +37,7 @@ func GetFirstAvailableWorker(workers map[string]workersv1.Worker) *workersv1.Wor
 	return nil
 }
 
-func GetFirstCalculationBulk(bulks map[string]workersv1.CalculationBulk) *workersv1.CalculationBulk {
+func GetCalculationBulksByRegisteredTime(bulks map[string]workersv1.CalculationBulk) []workersv1.CalculationBulk {
 	var ret []workersv1.CalculationBulk
 
 	for _, bulk := range bulks {
@@ -53,7 +53,7 @@ func GetFirstCalculationBulk(bulks map[string]workersv1.CalculationBulk) *worker
 		return nil
 	}
 
-	return &ret[0]
+	return ret
 }
 
 func UpdateWorkerStatusInPool(ctx context.Context, client ctrlruntimeclient.Client, workerPool, nodename, namespace string, state workersv1.WorkerState) error {

@@ -100,13 +100,16 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	if firstBulk := util.GetFirstCalculationBulk(workerpool.Spec.CalculationBulks); firstBulk != nil {
+	for _, bulk := range util.GetCalculationBulksByRegisteredTime(workerpool.Spec.CalculationBulks) {
+		bulkName := bulk.Name
 		for _, worker := range util.SortWorkers(workerpool.Spec.Workers) {
 			if worker.State == workersv1.WorkerAvailableState {
 
 				bulk := &bulkv1.CalculationBulk{}
-				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: firstBulk.Name}, bulk); err != nil {
-					return fmt.Errorf("couldn't get calculationbulk %w", err)
+				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulkName}, bulk); err != nil {
+					logger.WithError(err).Error("couldn't get calculationbulk")
+					// Continue to the next bulk
+					continue
 				}
 
 				for name, calculation := range bulk.Calculations {
@@ -133,9 +136,9 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 						// We don't want to continue assigning calculations to that worker
 						break
 					}
-
 				}
 			}
+
 		}
 	}
 	return nil
