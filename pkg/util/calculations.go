@@ -13,7 +13,7 @@ import (
 // NewCalculation gets the values of teff and logG and creates a calculation
 // with its minumum values
 func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
-	if len(calc.Steps) == 0 {
+	if calc.Pipeline == v1.VegaPipeline {
 		calc.Steps = []v1.Step{
 			{
 				Command: "atlas12_ada",

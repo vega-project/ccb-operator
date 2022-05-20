@@ -77,7 +77,6 @@ func main() {
 	r.Use(gin.Recovery())
 
 	r.GET("/calculations", s.getCalculations)
-	r.POST("/calculations/create", s.createCalculation)
 	r.DELETE("/calculations/delete/:id", s.deleteCalculation)
 
 	r.GET("/calculation", s.getCalculation)

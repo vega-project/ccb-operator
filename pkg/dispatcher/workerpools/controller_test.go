@@ -154,7 +154,7 @@ func TestReconcile(t *testing.T) {
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
 					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
-					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
+					Calculations: map[string]bulkv1.Calculation{"test-calc": {Pipeline: v1.VegaPipeline, Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
@@ -181,6 +181,7 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: util.GetCalculationName(
 							bulkv1.Calculation{
+								Pipeline: v1.VegaPipeline,
 								Params: bulkv1.Params{
 									Teff: 10000.0,
 									LogG: 4.0,
@@ -208,8 +209,9 @@ func TestReconcile(t *testing.T) {
 							"vegaproject.io/assign":          "worker-3",
 						},
 					},
-					Assign: "worker-3",
-					Phase:  "Created",
+					Assign:   "worker-3",
+					Phase:    "Created",
+					Pipeline: v1.VegaPipeline,
 					Spec: v1.CalculationSpec{
 						Teff: 10000,
 						LogG: 4,

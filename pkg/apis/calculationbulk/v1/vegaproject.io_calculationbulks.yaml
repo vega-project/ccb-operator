@@ -41,6 +41,8 @@ spec:
                   type: object
                 phase:
                   type: string
+                pipeline:
+                  type: string
                 steps:
                   items:
                     properties:
