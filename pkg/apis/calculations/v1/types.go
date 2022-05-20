@@ -22,10 +22,11 @@ type Calculation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CalculationSpec   `json:"spec"`
-	Assign string            `json:"assign"`
-	Status CalculationStatus `json:"status"`
-	Phase  CalculationPhase  `json:"phase"`
+	Spec     CalculationSpec   `json:"spec"`
+	Pipeline Pipeline          `json:"pipeline,omitempty"`
+	Assign   string            `json:"assign"`
+	Status   CalculationStatus `json:"status,omitempty"`
+	Phase    CalculationPhase  `json:"phase"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -48,6 +49,10 @@ type Step struct {
 	Args    []string         `json:"args"`
 	Status  CalculationPhase `json:"status,omitempty"`
 }
+
+type Pipeline string
+
+const VegaPipeline Pipeline = "vega"
 
 type CalculationStatus struct {
 	//Conditions represent the latest available observations of an object's current state:

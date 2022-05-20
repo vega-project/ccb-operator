@@ -23,9 +23,10 @@ type CalculationBulk struct {
 type Calculation struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Params Params                          `json:"params,omitempty"`
-	Steps  []v1.Step                       `json:"steps,omitempty"`
-	Phase  calculationsv1.CalculationPhase `json:"phase,omitempty"`
+	Pipeline calculationsv1.Pipeline         `json:"pipeline,omitempty"`
+	Params   Params                          `json:"params,omitempty"`
+	Steps    []v1.Step                       `json:"steps,omitempty"`
+	Phase    calculationsv1.CalculationPhase `json:"phase,omitempty"`
 }
 
 type Params struct {

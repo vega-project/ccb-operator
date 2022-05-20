@@ -38,6 +38,8 @@ spec:
             type: object
           phase:
             type: string
+          pipeline:
+            type: string
           spec:
             properties:
               logG:
@@ -87,7 +89,6 @@ spec:
         - assign
         - phase
         - spec
-        - status
         type: object
     served: true
     storage: true

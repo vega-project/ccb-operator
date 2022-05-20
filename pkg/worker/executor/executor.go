@@ -108,9 +108,6 @@ func (e *Executor) Run() {
 			}
 
 			// Creating folder
-			// TODO: create a temporary folder and copy the results only
-			// if the calculation succeeds. Otherwise the temp folder should be
-			// deleted. Make sure that this won't race with the result-collector
 			calcPath := filepath.Join(e.nfsPath, calc.Name)
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, 0777); err != nil {
@@ -120,10 +117,12 @@ func (e *Executor) Run() {
 				}
 			}
 
-			// Creating symbolic links with the data/control files for atlas12_ada
-			if err := e.createSymbolicLinks([]string{e.atlasControlFiles, e.atlasDataFiles}, calcPath); err != nil {
-				e.calcErrorChan <- calc.Name
-				break
+			if calc.Pipeline == v1.VegaPipeline {
+				// Creating symbolic links with the data/control files for atlas12_ada
+				if err := e.createSymbolicLinks([]string{e.atlasControlFiles, e.atlasDataFiles}, calcPath); err != nil {
+					e.calcErrorChan <- calc.Name
+					break
+				}
 			}
 
 			// Running steps
@@ -136,39 +135,41 @@ func (e *Executor) Run() {
 					continue
 				}
 
-				if index == 0 {
-					// Generate the input file
-					if err := e.generateInputFile(filepath.Join(calcPath, e.kuruzModelTemplateFile),
-						filepath.Join(calcPath, "t10000_400_72.mod.7011870916"), calc.Spec.Teff, calc.Spec.LogG); err != nil {
-						e.logger.WithError(err).Error("couldn't generate the input file")
-						break
-					}
-				}
-
-				if index == 2 {
-					e.logger.Info("Generate Synspec Input files...")
-					if contents, err := generateSynspecInputFile(calcPath, "t10000_400_72_strat.mod", "fort.8"); err != nil {
-						e.logger.WithError(err).Error("couldn't generate the Synspec's input file")
-						break
-					} else {
-						if err := ioutil.WriteFile(filepath.Join(calcPath, "fort.8"), contents, 0777); err != nil {
-							e.logger.WithError(err).Error("couldn't generate the new input file")
+				if calc.Pipeline == v1.VegaPipeline {
+					if index == 0 {
+						// Generate the input file
+						if err := e.generateInputFile(filepath.Join(calcPath, e.kuruzModelTemplateFile),
+							filepath.Join(calcPath, "t10000_400_72.mod.7011870916"), calc.Spec.Teff, calc.Spec.LogG); err != nil {
+							e.logger.WithError(err).Error("couldn't generate the input file")
 							break
 						}
 					}
 
-					if err := generateSynspecInputRuntimeFile(calcPath, e.synspecInputTemplateFile, "input_tlusty_fortfive", calc.Spec.Teff, calc.Spec.LogG); err != nil {
-						e.logger.WithError(err).Error("couldn't generate the Synspec's Runtime input file")
-						break
-					}
+					if index == 2 {
+						e.logger.Info("Generate Synspec Input files...")
+						if contents, err := generateSynspecInputFile(calcPath, "t10000_400_72_strat.mod", "fort.8"); err != nil {
+							e.logger.WithError(err).Error("couldn't generate the Synspec's input file")
+							break
+						} else {
+							if err := ioutil.WriteFile(filepath.Join(calcPath, "fort.8"), contents, 0777); err != nil {
+								e.logger.WithError(err).Error("couldn't generate the new input file")
+								break
+							}
+						}
 
+						if err := generateSynspecInputRuntimeFile(calcPath, e.synspecInputTemplateFile, "input_tlusty_fortfive", calc.Spec.Teff, calc.Spec.LogG); err != nil {
+							e.logger.WithError(err).Error("couldn't generate the Synspec's Runtime input file")
+							break
+						}
+
+					}
 				}
 
 				var status v1.CalculationPhase
 				var cmdErr error
 				status = "Completed"
 
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+				ctx, cancel := context.WithTimeout(context.Background(), 4*time.Hour)
 				defer cancel()
 
 				cmd := exec.CommandContext(ctx, step.command, step.args...)

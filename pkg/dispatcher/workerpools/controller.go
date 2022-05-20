@@ -116,6 +116,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 					// we assume that if the phase is empty, then the calculation haven't yet been processed.
 					if calculation.Phase == "" {
 						calc := util.NewCalculation(&calculation)
+						calc.Pipeline = calculation.Pipeline
 						calc.Assign = worker.Name
 						calc.Namespace = req.Namespace
 						calc.Labels = map[string]string{
