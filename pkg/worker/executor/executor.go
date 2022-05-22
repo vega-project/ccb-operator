@@ -118,28 +118,32 @@ func (e *Executor) Run() {
 			}
 
 			if calc.InputFiles != nil {
-				if calc.InputFiles.Symlink {
-					if err := e.createSymbolicLinks(calc.InputFiles.Files, calcPath); err != nil {
-						e.calcErrorChan <- calc.Name
-						break
-					} else {
-						for _, inputFile := range calc.InputFiles.Files {
-							rootDir := filepath.Dir(calcPath)
-							input, err := ioutil.ReadFile(filepath.Join(rootDir, inputFile))
-							if err != nil {
-								e.logger.WithError(err).Error("couln't read input file. Aborting...")
-								e.calcErrorChan <- calc.Name
-								return
-							}
-							_, inputFilename := filepath.Split(inputFile)
-							destinationFile := filepath.Join(calcPath, inputFilename)
-							err = ioutil.WriteFile(destinationFile, input, 0644)
-							if err != nil {
-								e.logger.WithError(err).Errorf("couln't write input file %s. Aborting...", destinationFile)
-								e.calcErrorChan <- calc.Name
-								return
-							}
+				rootDir := filepath.Dir(calcPath)
+				for _, inputFile := range calc.InputFiles.Files {
+
+					if calc.InputFiles.Symlink {
+						if err := e.createSymbolicLinks([]string{filepath.Join(rootDir, inputFile)}, calcPath); err != nil {
+							e.logger.WithError(err).Error("couln't creating symlink. Aborting...")
+							e.calcErrorChan <- calc.Name
+							break
 						}
+						continue
+					}
+
+					input, err := ioutil.ReadFile(filepath.Join(rootDir, inputFile))
+					if err != nil {
+						e.logger.WithError(err).Error("couln't read input file. Aborting...")
+						e.calcErrorChan <- calc.Name
+						return
+					}
+
+					_, inputFilename := filepath.Split(inputFile)
+					destinationFile := filepath.Join(calcPath, inputFilename)
+					err = ioutil.WriteFile(destinationFile, input, 0644)
+					if err != nil {
+						e.logger.WithError(err).Errorf("couln't write input file %s. Aborting...", destinationFile)
+						e.calcErrorChan <- calc.Name
+						return
 					}
 				}
 			}
