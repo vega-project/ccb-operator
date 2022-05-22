@@ -22,11 +22,12 @@ type Calculation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec     CalculationSpec   `json:"spec"`
-	Pipeline Pipeline          `json:"pipeline,omitempty"`
-	Assign   string            `json:"assign"`
-	Status   CalculationStatus `json:"status,omitempty"`
-	Phase    CalculationPhase  `json:"phase"`
+	Spec       CalculationSpec   `json:"spec,omitempty"`
+	Pipeline   Pipeline          `json:"pipeline,omitempty"`
+	Assign     string            `json:"assign,omitempty"`
+	InputFiles *InputFiles       `json:"input_files,omitempty"`
+	Status     CalculationStatus `json:"status,omitempty"`
+	Phase      CalculationPhase  `json:"phase,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -48,6 +49,11 @@ type Step struct {
 	Command string           `json:"command"`
 	Args    []string         `json:"args"`
 	Status  CalculationPhase `json:"status,omitempty"`
+}
+
+type InputFiles struct {
+	Files   []string `json:"files,omitempty"`
+	Symlink bool     `json:"symlink,omitempty"`
 }
 
 type Pipeline string

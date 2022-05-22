@@ -30,6 +30,15 @@ spec:
           calculations:
             additionalProperties:
               properties:
+                input_files:
+                  properties:
+                    files:
+                      items:
+                        type: string
+                      type: array
+                    symlink:
+                      type: boolean
+                  type: object
                 metadata:
                   type: object
                 params:
@@ -60,6 +69,15 @@ spec:
                     type: object
                   type: array
               type: object
+            type: object
+          input_files:
+            properties:
+              files:
+                items:
+                  type: string
+                type: array
+              symlink:
+                type: boolean
             type: object
           kind:
             description: 'Kind is a string value representing the REST resource this

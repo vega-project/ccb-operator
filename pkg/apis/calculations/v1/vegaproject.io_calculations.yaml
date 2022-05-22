@@ -29,6 +29,15 @@ spec:
             type: string
           assign:
             type: string
+          input_files:
+            properties:
+              files:
+                items:
+                  type: string
+                type: array
+              symlink:
+                type: boolean
+            type: object
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
@@ -85,10 +94,6 @@ spec:
                 format: date-time
                 type: string
             type: object
-        required:
-        - assign
-        - phase
-        - spec
         type: object
     served: true
     storage: true

@@ -3,7 +3,6 @@ package v1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
@@ -16,6 +15,7 @@ type CalculationBulk struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	WorkerPool   string                 `json:"workerPool,omitempty"`
+	InputFiles   *v1.InputFiles         `json:"input_files,omitempty"`
 	Calculations map[string]Calculation `json:"calculations,omitempty"`
 	Status       CalculationBulkStatus  `json:"status,omitempty"`
 }
@@ -23,10 +23,11 @@ type CalculationBulk struct {
 type Calculation struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Pipeline calculationsv1.Pipeline         `json:"pipeline,omitempty"`
-	Params   Params                          `json:"params,omitempty"`
-	Steps    []v1.Step                       `json:"steps,omitempty"`
-	Phase    calculationsv1.CalculationPhase `json:"phase,omitempty"`
+	Pipeline   v1.Pipeline         `json:"pipeline,omitempty"`
+	Params     Params              `json:"params,omitempty"`
+	Steps      []v1.Step           `json:"steps,omitempty"`
+	Phase      v1.CalculationPhase `json:"phase,omitempty"`
+	InputFiles *v1.InputFiles      `json:"input_files,omitempty"`
 }
 
 type Params struct {
