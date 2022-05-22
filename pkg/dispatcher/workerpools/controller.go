@@ -116,6 +116,8 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 					// we assume that if the phase is empty, then the calculation haven't yet been processed.
 					if calculation.Phase == "" {
 						calc := util.NewCalculation(&calculation)
+						logger = logger.WithField("calc-name", calc.Name).WithField("calc-bulk-name", name)
+
 						calc.InputFiles = calculation.InputFiles
 						calc.Pipeline = calculation.Pipeline
 						calc.Assign = worker.Name
@@ -126,6 +128,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 							"vegaproject.io/assign":   worker.Name,
 						}
 
+						logger.Info("Creating calculation.")
 						if err := r.client.Create(ctx, calc); err != nil {
 							return fmt.Errorf("couldn't create calculation: %w", err)
 						}
