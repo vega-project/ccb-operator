@@ -48,21 +48,6 @@ func validateOptions(o options) error {
 		return fmt.Errorf("--nfs-path was not provided")
 	}
 
-	if len(o.atlasControlFiles) == 0 {
-		return fmt.Errorf("--atlas-control-files-path was not provided")
-	}
-
-	if len(o.atlasDataFiles) == 0 {
-		return fmt.Errorf("--atlas-data-files-path was not provided")
-	}
-
-	if len(o.kuruzModelTemplateFile) == 0 {
-		return fmt.Errorf("--kuruz-model-template-file was not provided")
-	}
-
-	if len(o.synspecInputTemplateFile) == 0 {
-		return fmt.Errorf("--synspec-input-template-file was not provided")
-	}
 	if len(o.nodename) == 0 {
 		return fmt.Errorf("--nodename was not provided")
 	}
