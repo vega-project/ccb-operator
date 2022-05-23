@@ -125,11 +125,13 @@ func (e *Executor) Run() {
 
 				// Creating symbolic links with the data/control files for atlas12_ada
 				if err := e.createSymbolicLinks([]string{controlFiles, dataFiles}, calcPath); err != nil {
+					e.logger.WithError(err).Error("coulnd't create symlinks for the vega pipeline")
 					e.calcErrorChan <- calc.Name
 					break
 				}
 
 				if err := vegaPipeline.Run(e.logger, e.stepUpdaterChan); err != nil {
+					e.logger.WithError(err).Error("error while running the vega pipeline")
 					e.calcErrorChan <- calc.Name
 					break
 				}
