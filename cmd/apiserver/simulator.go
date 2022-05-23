@@ -42,7 +42,7 @@ func (s *simulator) initialize(ctx context.Context) {
 	for teff != 10000+s.dryCalculationsTotal {
 		teff++
 		c := &bulkv1.Calculation{
-			Params: bulkv1.Params{
+			Params: v1.Params{
 				Teff: float64(teff),
 				LogG: 4.0,
 			},

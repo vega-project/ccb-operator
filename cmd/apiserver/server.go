@@ -141,7 +141,7 @@ func (s *server) getCalculation(c *gin.Context) {
 	} else {
 		var calcs []v1.Calculation
 		for _, calc := range calcList.Items {
-			if calc.Spec.Teff == t && calc.Spec.LogG == l {
+			if calc.Spec.Params.Teff == t && calc.Spec.Params.LogG == l {
 				calcs = append(calcs, calc)
 			}
 		}
@@ -214,7 +214,7 @@ func (s *server) getCalculationResultsByID(c *gin.Context) {
 		return
 	}
 
-	s.sendResults(c, calc.Spec.Teff, calc.Spec.LogG)
+	s.sendResults(c, calc.Spec.Params.Teff, calc.Spec.Params.LogG)
 }
 
 func (s *server) getCalculationResults(c *gin.Context) {

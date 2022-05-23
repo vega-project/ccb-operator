@@ -51,7 +51,7 @@ func TestReconcile(t *testing.T) {
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
 					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk"},
-					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
+					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: v1.Params{Teff: 10000.0, LogG: 4.0}}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
@@ -74,7 +74,7 @@ func TestReconcile(t *testing.T) {
 				&bulkv1.CalculationBulk{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
 					Calculations: map[string]bulkv1.Calculation{"test-calc": {
-						Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0},
+						Params: v1.Params{Teff: 10000.0, LogG: 4.0},
 						Steps: []v1.Step{
 							{Command: "atlas12_ada", Args: []string{"s"}},
 							{Command: "atlas12_ada", Args: []string{"r"}},
@@ -107,7 +107,7 @@ func TestReconcile(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: util.GetCalculationName(
 							bulkv1.Calculation{
-								Params: bulkv1.Params{
+								Params: v1.Params{
 									Teff: 10000.0,
 									LogG: 4.0,
 								},
@@ -137,8 +137,7 @@ func TestReconcile(t *testing.T) {
 					Assign: "worker-1",
 					Phase:  "Created",
 					Spec: v1.CalculationSpec{
-						Teff: 10000,
-						LogG: 4,
+						Params: v1.Params{Teff: 10000, LogG: 4},
 						Steps: []v1.Step{
 							{Command: "atlas12_ada", Args: []string{"s"}},
 							{Command: "atlas12_ada", Args: []string{"r"}},
@@ -154,7 +153,7 @@ func TestReconcile(t *testing.T) {
 			calculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
 					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
-					Calculations: map[string]bulkv1.Calculation{"test-calc": {Pipeline: v1.VegaPipeline, Params: bulkv1.Params{Teff: 10000.0, LogG: 4.0}}},
+					Calculations: map[string]bulkv1.Calculation{"test-calc": {Pipeline: v1.VegaPipeline, Params: v1.Params{Teff: 10000.0, LogG: 4.0}}},
 				},
 			},
 			workerpools: []ctrlruntimeclient.Object{
@@ -182,7 +181,7 @@ func TestReconcile(t *testing.T) {
 						Name: util.GetCalculationName(
 							bulkv1.Calculation{
 								Pipeline: v1.VegaPipeline,
-								Params: bulkv1.Params{
+								Params: v1.Params{
 									Teff: 10000.0,
 									LogG: 4.0,
 								},
@@ -213,8 +212,7 @@ func TestReconcile(t *testing.T) {
 					Phase:    "Created",
 					Pipeline: v1.VegaPipeline,
 					Spec: v1.CalculationSpec{
-						Teff: 10000,
-						LogG: 4,
+						Params: v1.Params{Teff: 10000, LogG: 4},
 						Steps: []v1.Step{
 							{
 								Command: "atlas12_ada",

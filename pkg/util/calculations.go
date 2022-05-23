@@ -31,9 +31,8 @@ func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
 	}
 
 	calcSpec := v1.CalculationSpec{
-		Teff:  calc.Params.Teff,
-		LogG:  calc.Params.LogG,
-		Steps: calc.Steps,
+		Params: calc.Params,
+		Steps:  calc.Steps,
 	}
 
 	calcName := GetCalculationName(*calc)

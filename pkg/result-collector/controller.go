@@ -108,7 +108,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	logger = logger.WithField("calculation", calculation.Name)
-	resultPath := filepath.Join(r.resultsDir, fmt.Sprintf("%.1f___%.2f", calculation.Spec.Teff, calculation.Spec.LogG))
+	resultPath := filepath.Join(r.resultsDir, fmt.Sprintf("%.1f___%.2f", calculation.Spec.Params.Teff, calculation.Spec.Params.LogG))
 
 	if _, err := os.Stat(resultPath); os.IsNotExist(err) {
 		logger.Info("Creating folder with results")

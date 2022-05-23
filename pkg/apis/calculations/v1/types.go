@@ -40,9 +40,13 @@ type CalculationList struct {
 }
 
 type CalculationSpec struct {
-	Steps []Step  `json:"steps,omitempty"`
-	Teff  float64 `json:"teff"`
-	LogG  float64 `json:"logG"`
+	Steps  []Step `json:"steps,omitempty"`
+	Params Params `json:"params,omitempty"`
+}
+
+type Params struct {
+	LogG float64 `json:"log_g,omitempty"`
+	Teff float64 `json:"teff,omitempty"`
 }
 
 type Step struct {

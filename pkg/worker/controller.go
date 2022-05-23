@@ -24,7 +24,6 @@ import (
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
-	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 	"github.com/vega-project/ccb-operator/pkg/worker/workerpools"
 )
 
@@ -149,7 +148,7 @@ type Controller struct {
 	logger          *logrus.Entry
 	mgr             manager.Manager
 	client          ctrlruntimeclient.Client
-	stepUpdaterChan chan executor.Result
+	stepUpdaterChan chan util.Result
 	calcErrorChan   chan string
 	hostname        string
 	nodename        string
@@ -162,7 +161,7 @@ func NewController(
 	mgr manager.Manager,
 	executeChan chan *calculationsv1.Calculation,
 	calcErrorChan chan string,
-	stepUpdaterChan chan executor.Result,
+	stepUpdaterChan chan util.Result,
 	hostname, nodename, namespace, workerPool string) *Controller {
 	logger := logrus.WithField("controller", "calculations")
 	logger.Level = logrus.DebugLevel
@@ -243,7 +242,7 @@ func (c *Controller) updateErrorCalculation(name string) error {
 	})
 }
 
-func (c *Controller) updateCalculation(r executor.Result) error {
+func (c *Controller) updateCalculation(r util.Result) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		calculation := &v1.Calculation{}
 		if err := c.client.Get(c.ctx, ctrlruntimeclient.ObjectKey{Namespace: c.namespace, Name: r.CalcName}, calculation); err != nil {
