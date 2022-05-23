@@ -30,7 +30,7 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
 					calc := &bulkv1.Calculation{
-						Params: bulkv1.Params{
+						Params: v1.Params{
 							LogG: 4.0,
 							Teff: 1000,
 						},
@@ -45,7 +45,7 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
 					calc := &bulkv1.Calculation{
-						Params: bulkv1.Params{
+						Params: v1.Params{
 							LogG: 4.0,
 							Teff: 1000,
 						},
@@ -62,7 +62,7 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
 					calc := &bulkv1.Calculation{
-						Params: bulkv1.Params{
+						Params: v1.Params{
 							LogG: 4.0,
 							Teff: 1000,
 						},
@@ -79,7 +79,7 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
 					calc := &bulkv1.Calculation{
-						Params: bulkv1.Params{
+						Params: v1.Params{
 							LogG: 4.0,
 							Teff: 1000,
 						},
@@ -101,7 +101,7 @@ func TestUpdateCalculationLabels(t *testing.T) {
 			calculation: []ctrlruntimeclient.Object{
 				func() *v1.Calculation {
 					calc := &bulkv1.Calculation{
-						Params: bulkv1.Params{
+						Params: v1.Params{
 							LogG: 4.0,
 							Teff: 1000,
 						},

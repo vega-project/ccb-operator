@@ -32,11 +32,6 @@ func gatherOptions() options {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	fs.StringVar(&o.nfsPath, "nfs-path", "/var/tmp/nfs", "Path of the mounted nfs storage.")
-	fs.StringVar(&o.atlasControlFiles, "atlas-control-files-path", "/var/tmp/nfs/atlas-control-files", "Path of the atlas12 control files.")
-	fs.StringVar(&o.atlasDataFiles, "atlas-data-files-path", "/var/tmp/nfs/atlas-data-files", "Path of the atlas12 data files.")
-
-	fs.StringVar(&o.kuruzModelTemplateFile, "kuruz-model-template-file", "", "Kuruz model template file.")
-	fs.StringVar(&o.synspecInputTemplateFile, "synspec-input-template-file", "", "Synspec input template file.")
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
 	fs.StringVar(&o.nodename, "nodename", "", "The name of the node in which the worker is running")
 	fs.StringVar(&o.workerPool, "worker-pool", "vega-workers", "The pool where the worker will post the status updates")
@@ -105,7 +100,7 @@ func main() {
 
 	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, hostname, o.nodename, o.namespace, o.workerPool, o.nfsPath, o.atlasControlFiles, o.atlasDataFiles, o.kuruzModelTemplateFile, o.synspecInputTemplateFile, clusterConfig, o.dryRun)
+	op := worker.NewMainOperator(ctx, hostname, o.nodename, o.namespace, o.workerPool, o.nfsPath, clusterConfig, o.dryRun)
 	if err := op.Initialize(); err != nil {
 		logger.WithError(err).Fatal("couldn't initialize operator")
 	}

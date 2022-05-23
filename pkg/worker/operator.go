@@ -12,60 +12,41 @@ import (
 	"k8s.io/client-go/rest"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
 
 type Operator struct {
-	ctx                      context.Context
-	logger                   *logrus.Entry
-	cfg                      *rest.Config
-	calculationsController   *Controller
-	executor                 *executor.Executor
-	hostname                 string
-	nodename                 string
-	namespace                string
-	workerPool               string
-	nfsPath                  string
-	atlasControlFiles        string
-	atlasDataFiles           string
-	kuruzModelTemplateFile   string
-	synspecInputTemplateFile string
-	dryRun                   bool
+	ctx                    context.Context
+	logger                 *logrus.Entry
+	cfg                    *rest.Config
+	calculationsController *Controller
+	executor               *executor.Executor
+	hostname               string
+	nodename               string
+	namespace              string
+	workerPool             string
+	nfsPath                string
+	dryRun                 bool
 }
 
-func NewMainOperator(
-	ctx context.Context,
-	hostname,
-	nodename,
-	namespace,
-	workerPool,
-	nfsPath,
-	atlasControlFiles,
-	atlasDataFiles,
-	kuruzModelTemplateFile,
-	synspecInputTemplateFile string,
-	cfg *rest.Config,
-	dryRun bool) *Operator {
+func NewMainOperator(ctx context.Context, hostname, nodename, namespace, workerPool, nfsPath string, cfg *rest.Config, dryRun bool) *Operator {
 	return &Operator{
-		ctx:                      ctx,
-		logger:                   logrus.WithField("name", "operator"),
-		cfg:                      cfg,
-		dryRun:                   dryRun,
-		hostname:                 hostname,
-		nodename:                 nodename,
-		namespace:                namespace,
-		workerPool:               workerPool,
-		nfsPath:                  nfsPath,
-		atlasControlFiles:        atlasControlFiles,
-		atlasDataFiles:           atlasDataFiles,
-		kuruzModelTemplateFile:   kuruzModelTemplateFile,
-		synspecInputTemplateFile: synspecInputTemplateFile,
+		ctx:        ctx,
+		logger:     logrus.WithField("name", "operator"),
+		cfg:        cfg,
+		dryRun:     dryRun,
+		hostname:   hostname,
+		nodename:   nodename,
+		namespace:  namespace,
+		workerPool: workerPool,
+		nfsPath:    nfsPath,
 	}
 }
 
 func (op *Operator) Initialize() error {
 	executeChan := make(chan *calculationsv1.Calculation)
-	stepUpdaterChan := make(chan executor.Result)
+	stepUpdaterChan := make(chan util.Result)
 	calcErrorChan := make(chan string)
 
 	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
@@ -76,9 +57,7 @@ func (op *Operator) Initialize() error {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
-	op.executor = executor.NewExecutor(op.ctx, mgr.GetClient(), executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath,
-		op.atlasControlFiles, op.atlasDataFiles, op.kuruzModelTemplateFile, op.synspecInputTemplateFile, op.nodename, op.namespace, op.workerPool)
-
+	op.executor = executor.NewExecutor(op.ctx, mgr.GetClient(), executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath, op.nodename, op.namespace, op.workerPool)
 	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.nodename, op.namespace, op.workerPool)
 	return nil
 }

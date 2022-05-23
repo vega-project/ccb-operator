@@ -24,15 +24,10 @@ type Calculation struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Pipeline   v1.Pipeline         `json:"pipeline,omitempty"`
-	Params     Params              `json:"params,omitempty"`
+	Params     v1.Params           `json:"params,omitempty"`
 	Steps      []v1.Step           `json:"steps,omitempty"`
 	Phase      v1.CalculationPhase `json:"phase,omitempty"`
 	InputFiles *v1.InputFiles      `json:"input_files,omitempty"`
-}
-
-type Params struct {
-	LogG float64 `json:"log_g,omitempty"`
-	Teff float64 `json:"teff,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
