@@ -131,6 +131,7 @@ func TestReconcile(t *testing.T) {
 						Labels: map[string]string{
 							"vegaproject.io/bulk":            "test-bulk",
 							"vegaproject.io/calculationName": "test-calc",
+							"vegaproject.io/rootFolder":      "",
 							"vegaproject.io/assign":          "worker-1",
 						},
 					},
@@ -206,6 +207,7 @@ func TestReconcile(t *testing.T) {
 							"vegaproject.io/bulk":            "test-bulk",
 							"vegaproject.io/calculationName": "test-calc",
 							"vegaproject.io/assign":          "worker-3",
+							"vegaproject.io/rootFolder":      "",
 						},
 					},
 					Assign:   "worker-3",

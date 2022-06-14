@@ -78,7 +78,9 @@ func (e *Executor) Run() {
 			}
 
 			// Creating folder
-			calcPath := filepath.Join(e.nfsPath, calc.Name)
+			rootFolder := filepath.Join(e.nfsPath, calc.Labels[util.CalcRootFolder])
+			calcBulkName := calc.Labels[util.CalculationNameLabel]
+			calcPath := filepath.Join(rootFolder, calcBulkName)
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, 0777); err != nil {
 					e.logger.WithError(err).Error("couln't create directory. Aborting...")
@@ -90,7 +92,7 @@ func (e *Executor) Run() {
 			if calc.InputFiles != nil {
 				for _, inputFile := range calc.InputFiles.Files {
 					if calc.InputFiles.Symlink {
-						if err := e.createSymbolicLinks([]string{filepath.Join(e.nfsPath, inputFile)}, calcPath); err != nil {
+						if err := e.createSymbolicLinks([]string{filepath.Join(rootFolder, inputFile)}, calcPath); err != nil {
 							e.logger.WithError(err).Error("couln't creating symlink. Aborting...")
 							e.calcErrorChan <- calc.Name
 							break
@@ -98,7 +100,7 @@ func (e *Executor) Run() {
 						continue
 					}
 
-					input, err := ioutil.ReadFile(filepath.Join(e.nfsPath, inputFile))
+					input, err := ioutil.ReadFile(filepath.Join(rootFolder, inputFile))
 					if err != nil {
 						e.logger.WithError(err).Error("couln't read input file. Aborting...")
 						e.calcErrorChan <- calc.Name
@@ -120,8 +122,8 @@ func (e *Executor) Run() {
 			case v1.VegaPipeline:
 				vegaPipeline := pipelines.NewVegaPipeline(calc.Name, calcPath, calc.Spec.Params)
 
-				controlFiles := filepath.Join(e.nfsPath, vegaPipeline.AtlasControlFiles)
-				dataFiles := filepath.Join(e.nfsPath, vegaPipeline.AtlasDataFiles)
+				controlFiles := filepath.Join(rootFolder, vegaPipeline.AtlasControlFiles)
+				dataFiles := filepath.Join(rootFolder, vegaPipeline.AtlasDataFiles)
 
 				// Creating symbolic links with the data/control files for atlas12_ada
 				if err := e.createSymbolicLinks([]string{controlFiles, dataFiles}, calcPath); err != nil {
