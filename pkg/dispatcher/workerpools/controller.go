@@ -126,6 +126,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 							util.BulkLabel:            bulk.Name,
 							util.CalculationNameLabel: name,
 							"vegaproject.io/assign":   worker.Name,
+							util.CalcRootFolder:       bulk.RootFolder,
 						}
 
 						logger.Info("Creating calculation.")

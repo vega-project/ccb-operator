@@ -14,6 +14,7 @@ type CalculationBulk struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	RootFolder   string                 `json:"root_folder,omitempty"`
 	WorkerPool   string                 `json:"workerPool,omitempty"`
 	InputFiles   *v1.InputFiles         `json:"input_files,omitempty"`
 	Calculations map[string]Calculation `json:"calculations,omitempty"`
