@@ -159,9 +159,10 @@ func (e *Executor) Run() {
 						e.logger.WithError(err).WithField("output", string(combinedOut)).Error("command failed...")
 						status = v1.FailedPhase
 						cmdErr = err
-						if err := e.dumpCommandOutput(calcPath, index, combinedOut); err != nil {
-							e.logger.WithError(err).Error("couldn't dump command output to file")
-						}
+					}
+
+					if err := e.dumpCommandOutput(calcPath, index, combinedOut); err != nil {
+						e.logger.WithError(err).Error("couldn't dump command output to file")
 					}
 
 					result := util.Result{
