@@ -15,73 +15,124 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
 func TestReconcile(t *testing.T) {
 	testCases := []struct {
-		name     string
-		bulks    []ctrlruntimeclient.Object
-		pools    []ctrlruntimeclient.Object
-		expected []workersv1.WorkerPool
+		name             string
+		initialResources []ctrlruntimeclient.Object
+		expected         []ctrlruntimeclient.Object
 	}{
 		{
 			name: "basic case",
-			bulks: []ctrlruntimeclient.Object{
+			initialResources: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
-					WorkerPool: "test-pool",
-					Status: bulkv1.CalculationBulkStatus{
-						State: bulkv1.CalculationBulkAvailableState,
+					ObjectMeta:   metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					WorkerPool:   "workerpool-test",
+					Calculations: map[string]bulkv1.Calculation{"test-calc": {Params: v1.Params{Teff: 10000.0, LogG: 4.0}}},
+				},
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerAvailableState},
+						},
 					},
 				},
 			},
-			pools: []ctrlruntimeclient.Object{
+			expected: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerAvailableState},
+						},
+					},
 				},
 			},
-			expected: []workersv1.WorkerPool{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
+		},
+		{
+			name: "multiple case - less calculations",
+			initialResources: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					WorkerPool: "workerpool-test",
+					Calculations: map[string]bulkv1.Calculation{
+						"test-calc":   {Params: v1.Params{Teff: 10000.0, LogG: 4.0}},
+						"test-calc-2": {Params: v1.Params{Teff: 11000.0, LogG: 4.0}},
+					},
+				},
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk": {Name: "test-bulk", State: bulkv1.CalculationBulkAvailableState},
-						}},
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerAvailableState},
+						},
+					},
+				},
+			},
+			expected: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
+					Spec: workersv1.WorkerPoolSpec{
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerReservedState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerAvailableState},
+						},
+					},
 				},
 			},
 		},
 		{
 			name: "multiple case",
-			bulks: []ctrlruntimeclient.Object{
+			initialResources: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
-					WorkerPool: "test-pool",
-					Status: bulkv1.CalculationBulkStatus{
-						State: bulkv1.CalculationBulkAvailableState,
+					WorkerPool: "workerpool-test",
+					Calculations: map[string]bulkv1.Calculation{
+						"test-calc":   {Params: v1.Params{Teff: 10000.0, LogG: 4.0}},
+						"test-calc-2": {Params: v1.Params{Teff: 11000.0, LogG: 4.0}},
+						"test-calc-3": {Params: v1.Params{Teff: 12000.0, LogG: 4.0}},
+						"test-calc-4": {Params: v1.Params{Teff: 13000.0, LogG: 4.0}},
+						"test-calc-5": {Params: v1.Params{Teff: 14000.0, LogG: 4.0}},
 					},
 				},
-			},
-			pools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk-0": {Name: "test-bulk-0", State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk-1": {Name: "test-bulk-1", State: bulkv1.CalculationBulkAvailableState},
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerAvailableState},
 						},
 					},
 				},
 			},
-			expected: []workersv1.WorkerPool{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-pool", Namespace: "vega"},
+			expected: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"test-bulk-0": {Name: "test-bulk-0", State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk-1": {Name: "test-bulk-1", State: bulkv1.CalculationBulkAvailableState},
-							"test-bulk":   {Name: "test-bulk", State: bulkv1.CalculationBulkAvailableState},
-						}},
+						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
+						Workers: map[string]workersv1.Worker{
+							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
+							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerReservedState},
+							"node-3": {Name: "worker-3", Node: "node-3", State: workersv1.WorkerReservedState},
+						},
+					},
 				},
 			},
 		},
@@ -91,7 +142,7 @@ func TestReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &reconciler{
 				logger: logrus.WithField("test-name", tc.name),
-				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(append(tc.bulks, tc.pools...)...).Build(),
+				client: fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialResources...).Build(),
 			}
 
 			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "vega", Name: "test-bulk"}}
@@ -99,12 +150,17 @@ func TestReconcile(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var actualPools workersv1.WorkerPoolList
-			if err := r.client.List(context.Background(), &actualPools); err != nil {
+			var actualBulk bulkv1.CalculationBulk
+			if err := r.client.Get(context.Background(), ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, &actualBulk); err != nil {
 				t.Fatal(err)
 			}
 
-			if diff := cmp.Diff(actualPools.Items, tc.expected,
+			var actualWorkerPool workersv1.WorkerPool
+			if err := r.client.Get(context.Background(), ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: "workerpool-test"}, &actualWorkerPool); err != nil {
+				t.Fatal(err)
+			}
+
+			if diff := cmp.Diff([]ctrlruntimeclient.Object{&actualWorkerPool}, tc.expected,
 				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
 				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
 				t.Fatal(diff)

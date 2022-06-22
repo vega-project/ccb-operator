@@ -43,6 +43,7 @@ func TestReconcile(t *testing.T) {
 						Workers: map[string]workersv1.Worker{
 							"test-node-1": {
 								Name:                  "test-worker",
+								Node:                  "test-node-1",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,
@@ -64,6 +65,7 @@ func TestReconcile(t *testing.T) {
 						Workers: map[string]workersv1.Worker{
 							"test-node-1": {
 								Name:                  "test-another-worker",
+								Node:                  "test-node-1",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,
@@ -71,6 +73,7 @@ func TestReconcile(t *testing.T) {
 							},
 							"test-node-2": {
 								Name:                  "test-another-worker-2",
+								Node:                  "test-node-2",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,
@@ -88,6 +91,7 @@ func TestReconcile(t *testing.T) {
 						Workers: map[string]workersv1.Worker{
 							"test-node-1": {
 								Name:                  "test-another-worker",
+								Node:                  "test-node-1",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,
@@ -95,6 +99,7 @@ func TestReconcile(t *testing.T) {
 							},
 							"test-node-2": {
 								Name:                  "test-another-worker-2",
+								Node:                  "test-node-2",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,
@@ -102,6 +107,7 @@ func TestReconcile(t *testing.T) {
 							},
 							"test-node-3": {
 								Name:                  "test-worker",
+								Node:                  "test-node-3",
 								RegisteredTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								LastUpdateTime:        &metav1.Time{Time: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.Local)},
 								CalculationsProcessed: 0,

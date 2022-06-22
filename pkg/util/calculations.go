@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,4 +74,33 @@ func hasFailedStep(steps []v1.Step) bool {
 		}
 	}
 	return false
+}
+
+type sortedCalculations struct {
+	Items []item
+}
+
+type item struct {
+	Name        string
+	Calculation bulkv1.Calculation
+}
+
+func GetSortedCreatedCalculations(calcs map[string]bulkv1.Calculation) sortedCalculations {
+	keys := make([]string, 0, len(calcs))
+	for k, v := range calcs {
+		if v.Phase == "" {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+
+	var sorted sortedCalculations
+	for _, key := range keys {
+		sorted.Items = append(sorted.Items, item{
+			Name:        key,
+			Calculation: calcs[key],
+		})
+
+	}
+	return sorted
 }
