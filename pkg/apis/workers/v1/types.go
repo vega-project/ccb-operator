@@ -38,17 +38,19 @@ type CalculationBulk struct {
 }
 
 type Worker struct {
-	Name                  string       `json:"name"`
-	RegisteredTime        *metav1.Time `json:"registeredTime"`
+	Name                  string       `json:"name,omitempty"`
+	Node                  string       `json:"node,omitempty"`
+	RegisteredTime        *metav1.Time `json:"registeredTime,omitempty"`
 	LastUpdateTime        *metav1.Time `json:"lastUpdateTime,omitempty"`
-	CalculationsProcessed int64        `json:"calculationsProcessed"`
-	State                 WorkerState  `json:"status"`
+	CalculationsProcessed int64        `json:"calculationsProcessed,omitempty"`
+	State                 WorkerState  `json:"status,omitempty"`
 }
 
 type WorkerState string
 
 const (
 	WorkerAvailableState  WorkerState = "Available"
+	WorkerReservedState   WorkerState = "Reserved"
 	WorkerProcessingState WorkerState = "Processing"
 	WorkerUnknownState    WorkerState = "Unknown"
 )

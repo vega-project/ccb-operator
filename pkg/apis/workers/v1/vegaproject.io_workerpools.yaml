@@ -57,16 +57,13 @@ spec:
                       type: string
                     name:
                       type: string
+                    node:
+                      type: string
                     registeredTime:
                       format: date-time
                       type: string
                     status:
                       type: string
-                  required:
-                  - calculationsProcessed
-                  - name
-                  - registeredTime
-                  - status
                   type: object
                 type: object
             type: object
