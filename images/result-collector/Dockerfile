@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos:8
 
 ADD result-collector /usr/bin/result-collector
 

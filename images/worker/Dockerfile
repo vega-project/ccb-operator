@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos:8
 
 RUN yum install -y gcc-gnat-4.8.5 libgnat-4.8.5 libgnat-devel-4.8.5
 
