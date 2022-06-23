@@ -109,7 +109,6 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if calculation.Assign == r.hostname {
-
 		if calculation.Phase == v1.CreatedPhase {
 			r.logger.WithField("calculation", calculation.Name).Info("Processing assigned calculation")
 

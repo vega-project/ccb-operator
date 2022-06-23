@@ -16,7 +16,6 @@ import (
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
-	"github.com/vega-project/ccb-operator/pkg/dispatcher/workerpools"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -87,10 +86,6 @@ func main() {
 
 	if err := workers.AddToManager(mgr, o.namespace); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workers controller to manager")
-	}
-
-	if err := workerpools.AddToManager(mgr, o.namespace); err != nil {
-		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
 	if err := bulks.AddToManager(ctx, mgr, o.namespace); err != nil {

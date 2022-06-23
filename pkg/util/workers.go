@@ -15,7 +15,7 @@ import (
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 )
 
-func SortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
+func sortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
 	var ret []workersv1.Worker
 
 	for _, v := range workers {
@@ -25,11 +25,16 @@ func SortWorkers(workers map[string]workersv1.Worker) []workersv1.Worker {
 	sort.Slice(ret, func(i, j int) bool {
 		return ret[i].LastUpdateTime.Before(ret[j].LastUpdateTime)
 	})
+
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].Node < ret[j].Node
+	})
+
 	return ret
 }
 
 func GetFirstAvailableWorker(workers map[string]workersv1.Worker) *workersv1.Worker {
-	for _, worker := range SortWorkers(workers) {
+	for _, worker := range sortWorkers(workers) {
 		if worker.State == workersv1.WorkerAvailableState {
 			return &worker
 		}

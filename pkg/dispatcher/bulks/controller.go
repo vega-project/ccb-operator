@@ -19,6 +19,7 @@ import (
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
+	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 const (
@@ -39,8 +40,8 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
 
 	predicateFuncs := predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return e.ObjectNew.GetNamespace() == ns },
 		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 		GenericFunc: func(e event.GenericEvent) bool { return false },
 	}
 
@@ -90,27 +91,60 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	workerpool := &workersv1.WorkerPool{}
-	if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
-		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, req.Namespace, err)
+	sortedCalculations := util.GetSortedCreatedCalculations(bulk.Calculations)
+	for _, item := range sortedCalculations.Items {
+		workerpool := &workersv1.WorkerPool{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
+			return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, req.Namespace, err)
+		}
+
+		workerToReserve := util.GetFirstAvailableWorker(workerpool.Spec.Workers)
+		if workerToReserve == nil {
+			return nil
+		}
+
+		calculation := item.Calculation
+		name := item.Name
+		// we assume that if the phase is empty, then the calculation haven't yet been processed.
+		calc := util.NewCalculation(&calculation)
+		logger = logger.WithField("calc-name", calc.Name).WithField("calc-bulk-name", name)
+
+		calc.InputFiles = calculation.InputFiles
+		calc.Pipeline = calculation.Pipeline
+		calc.Assign = workerToReserve.Name
+		calc.Namespace = req.Namespace
+		calc.Labels = map[string]string{
+			util.BulkLabel:            bulk.Name,
+			util.CalculationNameLabel: name,
+			"vegaproject.io/assign":   workerToReserve.Name,
+			util.CalcRootFolder:       bulk.RootFolder,
+		}
+
+		logger.Info("Creating calculation.")
+		if err := r.client.Create(ctx, calc); err != nil {
+			return fmt.Errorf("couldn't create calculation: %w", err)
+		}
+
+		if err := r.reserveWorkerInPool(ctx, bulk.WorkerPool, req.Namespace, workerToReserve.Node); err != nil {
+			return fmt.Errorf("couldn't reserve worker %s in pool %s: %w", workerToReserve.Node, bulk.WorkerPool, err)
+		}
 	}
 
+	return nil
+}
+
+func (r *reconciler) reserveWorkerInPool(ctx context.Context, workerPool, namespace, workerName string) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &workersv1.WorkerPool{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, pool); err != nil {
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool); err != nil {
 			return fmt.Errorf("failed to get the calculation bulk: %w", err)
 		}
 
-		if pool.Spec.CalculationBulks == nil {
-			pool.Spec.CalculationBulks = make(map[string]workersv1.CalculationBulk)
-		}
-		pool.Spec.CalculationBulks[bulk.Name] = workersv1.CalculationBulk{
-			Name:           bulk.Name,
-			RegisteredTime: &bulk.CreationTimestamp,
-			State:          bulk.Status.State,
-		}
+		worker := pool.Spec.Workers[workerName]
+		worker.State = workersv1.WorkerReservedState
+		pool.Spec.Workers[workerName] = worker
 
-		r.logger.WithField("worker-pool", pool.Name).Info("Updating worker pool...")
+		r.logger.WithField("worker-pool", pool.Name).WithField("worker", workerName).Info("Updating worker pool...")
 		if err := r.client.Update(ctx, pool); err != nil {
 			return fmt.Errorf("failed to update worker pool %s: %w", pool.Name, err)
 		}

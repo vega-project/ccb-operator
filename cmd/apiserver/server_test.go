@@ -653,9 +653,6 @@ func TestGetWorkerPools(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
 						},
@@ -672,9 +669,6 @@ func TestGetWorkerPools(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
 						},
@@ -694,9 +688,6 @@ func TestGetWorkerPools(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-2"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
 						},
@@ -711,9 +702,6 @@ func TestGetWorkerPools(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-3"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: &metav1.Time{}, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
 						},
@@ -730,9 +718,6 @@ func TestGetWorkerPools(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-2"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
 						},
@@ -747,9 +732,6 @@ func TestGetWorkerPools(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-3"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{
-							"wp1": {Name: "bulk-name", RegisteredTime: nil, State: bulkv1.CalculationBulkState(workersv1.WorkerUnknownState)},
-						},
 						Workers: map[string]workersv1.Worker{
 							"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
 						},
