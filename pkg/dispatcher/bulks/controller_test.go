@@ -36,7 +36,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
@@ -49,7 +48,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
@@ -73,7 +71,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
@@ -86,7 +83,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerReservedState},
@@ -113,7 +109,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerAvailableState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerAvailableState},
@@ -126,7 +121,6 @@ func TestReconcile(t *testing.T) {
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "vega", Name: "workerpool-test"},
 					Spec: workersv1.WorkerPoolSpec{
-						CalculationBulks: map[string]workersv1.CalculationBulk{"test-bulk": {Name: "test-bulk"}},
 						Workers: map[string]workersv1.Worker{
 							"node-1": {Name: "worker-1", Node: "node-1", State: workersv1.WorkerReservedState},
 							"node-2": {Name: "worker-2", Node: "node-2", State: workersv1.WorkerReservedState},

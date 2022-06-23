@@ -27,8 +27,7 @@ type WorkerPoolList struct {
 }
 
 type WorkerPoolSpec struct {
-	CalculationBulks map[string]CalculationBulk `json:"calculationBulks,omitempty"`
-	Workers          map[string]Worker          `json:"workers,omitempty"`
+	Workers map[string]Worker `json:"workers,omitempty"`
 }
 
 type CalculationBulk struct {

@@ -34,18 +34,6 @@ spec:
             type: object
           spec:
             properties:
-              calculationBulks:
-                additionalProperties:
-                  properties:
-                    name:
-                      type: string
-                    registeredTime:
-                      format: date-time
-                      type: string
-                    state:
-                      type: string
-                  type: object
-                type: object
               workers:
                 additionalProperties:
                   properties:
