@@ -156,7 +156,8 @@ func TestReconcile(t *testing.T) {
 
 			if diff := cmp.Diff([]ctrlruntimeclient.Object{&actualWorkerPool}, tc.expected,
 				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion"),
-				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				cmpopts.IgnoreFields(workersv1.Worker{}, "LastUpdateTime")); diff != "" {
 				t.Fatal(diff)
 			}
 

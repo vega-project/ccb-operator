@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -103,8 +102,8 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			return nil
 		}
 
-		if err := r.reserveWorkerInPool(ctx, bulk.WorkerPool, req.Namespace, workerToReserve.Node); err != nil {
-			return fmt.Errorf("couldn't reserve worker %s in pool %s: %w", workerToReserve.Node, bulk.WorkerPool, err)
+		if err := util.UpdateWorkerStatusInPool(ctx, r.client, bulk.WorkerPool, workerToReserve.Node, req.Namespace, workersv1.WorkerReservedState); err != nil {
+			return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
 		}
 
 		calculation := item.Calculation
@@ -126,32 +125,14 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 		logger.Info("Creating calculation.")
 		if err := r.client.Create(ctx, calc); err != nil {
+			if err := util.UpdateWorkerStatusInPool(ctx, r.client, bulk.WorkerPool, workerToReserve.Node, req.Namespace, workersv1.WorkerAvailableState); err != nil {
+				return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
+			}
 			return fmt.Errorf("couldn't create calculation: %w", err)
+
 		}
 
 	}
 
-	return nil
-}
-
-func (r *reconciler) reserveWorkerInPool(ctx context.Context, workerPool, namespace, workerName string) error {
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		pool := &workersv1.WorkerPool{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool); err != nil {
-			return fmt.Errorf("failed to get the calculation bulk: %w", err)
-		}
-
-		worker := pool.Spec.Workers[workerName]
-		worker.State = workersv1.WorkerReservedState
-		pool.Spec.Workers[workerName] = worker
-
-		r.logger.WithField("worker-pool", pool.Name).WithField("worker", workerName).Info("Updating worker pool...")
-		if err := r.client.Update(ctx, pool); err != nil {
-			return fmt.Errorf("failed to update worker pool %s: %w", pool.Name, err)
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
 	return nil
 }
