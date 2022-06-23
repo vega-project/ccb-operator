@@ -103,6 +103,10 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			return nil
 		}
 
+		if err := r.reserveWorkerInPool(ctx, bulk.WorkerPool, req.Namespace, workerToReserve.Node); err != nil {
+			return fmt.Errorf("couldn't reserve worker %s in pool %s: %w", workerToReserve.Node, bulk.WorkerPool, err)
+		}
+
 		calculation := item.Calculation
 		name := item.Name
 		// we assume that if the phase is empty, then the calculation haven't yet been processed.
@@ -125,9 +129,6 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			return fmt.Errorf("couldn't create calculation: %w", err)
 		}
 
-		if err := r.reserveWorkerInPool(ctx, bulk.WorkerPool, req.Namespace, workerToReserve.Node); err != nil {
-			return fmt.Errorf("couldn't reserve worker %s in pool %s: %w", workerToReserve.Node, bulk.WorkerPool, err)
-		}
 	}
 
 	return nil
