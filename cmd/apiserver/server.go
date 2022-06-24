@@ -1,15 +1,11 @@
 package main
 
 import (
-	"archive/tar"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -60,10 +56,82 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 	}
 
 	if err := s.client.Create(s.ctx, bulk); err != nil {
-		responseError(c, "couldn't create calculation", err)
+		responseError(c, "couldn't create calculation bulk", err)
 	} else {
 		c.JSON(http.StatusOK, gin.H{"data": bulk})
 	}
+}
+
+func (s *server) createWorkerPool(c *gin.Context) {
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		responseError(c, "couldn't read body", err)
+		return
+	}
+
+	workerPoolName := fmt.Sprintf("workerpool-%s", util.InputHash(body))
+	var workerPools struct {
+		Workers        map[string]workersv1.Worker `json:"workers,omitempty"`
+		CompletionTime metav1.Time                 `json:"completionTime,omitempty"`
+		CreationTime   metav1.Time                 `json:"creationTime,omitempty"`
+		PendingTime    metav1.Time                 `json:"pendingTime,omitempty"`
+	}
+
+	if err := json.Unmarshal(body, &workerPools); err != nil {
+		responseError(c, "couldn't unmarshal body", err)
+	}
+
+	s.logger.Info("Creating the workerpool...")
+
+	wp := &workersv1.WorkerPool{
+		ObjectMeta: metav1.ObjectMeta{Name: workerPoolName, Namespace: s.namespace},
+		Spec: workersv1.WorkerPoolSpec{
+			Workers: workerPools.Workers,
+		},
+		Status: workersv1.WorkerPoolStatus{
+			CreationTime:   &workerPools.CreationTime,
+			PendingTime:    &workerPools.PendingTime,
+			CompletionTime: &workerPools.CompletionTime,
+		},
+	}
+
+	if err := s.client.Create(s.ctx, wp); err != nil {
+		responseError(c, "couldn't create calculation bulk", err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": wp})
+	}
+}
+
+func (s *server) deleteCalculationBulk(c *gin.Context) {
+	calcBulkName := c.Param("id")
+	bulk := &bulkv1.CalculationBulk{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcBulkName}, bulk)
+	if err != nil {
+		responseError(c, fmt.Sprintf("failed to get the calculation bulk %s", calcBulkName), err)
+	}
+
+	if err := s.client.Delete(s.ctx, bulk); err != nil {
+		responseError(c, fmt.Sprintf("failed to delete the calculation bulk %s", calcBulkName), err)
+	} else {
+		c.JSON(http.StatusOK, response(fmt.Sprintf("calculation bulk %s has been deleted", calcBulkName), http.StatusOK))
+	}
+
+}
+
+func (s *server) deleteWorkerPool(c *gin.Context) {
+	workerPoolName := c.Param("id")
+	workerpool := &workersv1.WorkerPool{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerpool)
+	if err != nil {
+		responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
+	}
+
+	if err := s.client.Delete(s.ctx, workerpool); err != nil {
+		responseError(c, fmt.Sprintf("failed to delete the workerpool %s", workerPoolName), err)
+	} else {
+		c.JSON(http.StatusOK, response(fmt.Sprintf("workerpool %s has been deleted", workerPoolName), http.StatusOK))
+	}
+
 }
 
 func (s *server) deleteCalculation(c *gin.Context) {
@@ -149,93 +217,6 @@ func (s *server) getCalculation(c *gin.Context) {
 	}
 }
 
-func (s *server) sendResults(c *gin.Context, teff, logG float64) {
-	resultDirName := fmt.Sprintf("%.1f___%.2f", teff, logG)
-
-	fort7Data, err := ioutil.ReadFile(filepath.Join(s.resultsPath, resultDirName, "fort.7"))
-	if err != nil {
-		responseError(c, "File reading error", err)
-		return
-	}
-
-	fort8Data, err := ioutil.ReadFile(filepath.Join(s.resultsPath, resultDirName, "fort.8"))
-	if err != nil {
-		responseError(c, "File reading error", err)
-		return
-	}
-
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-	var files = []struct {
-		name string
-		data []byte
-	}{
-		{"fort.7", fort7Data},
-		{"fort.8", fort8Data},
-	}
-	for _, file := range files {
-		hdr := &tar.Header{
-			Name: file.name,
-			Mode: 0600,
-			Size: int64(len(file.data)),
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			responseError(c, "couldn't write header while creating the tar file", err)
-			return
-		}
-		if _, err := tw.Write(file.data); err != nil {
-			responseError(c, "couldn't write data while creating the tar file", err)
-			return
-		}
-	}
-
-	if err := tw.Close(); err != nil {
-		responseError(c, "couldn't close the tar file", err)
-		return
-	}
-
-	tarBytes := buf.Bytes()
-	c.Writer.Header().Add("Content-Disposition", "attachment; filename="+fmt.Sprintf("%.1f_%.2f-results.tar.gz", teff, logG))
-	c.Writer.Header().Add("Content-Type", http.DetectContentType(tarBytes))
-
-	tarReader := bytes.NewReader(tarBytes)
-	if _, err := io.Copy(c.Writer, tarReader); err != nil {
-		responseError(c, "couldn't copy data into response writer", err)
-	}
-}
-
-func (s *server) getCalculationResultsByID(c *gin.Context) {
-	calcID := c.Param("id")
-
-	calc := &v1.Calculation{}
-	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcID}, calc)
-	if err != nil {
-		responseError(c, fmt.Sprintf("couldn't get calculation %s", calcID), err)
-		return
-	}
-
-	s.sendResults(c, calc.Spec.Params.Teff, calc.Spec.Params.LogG)
-}
-
-func (s *server) getCalculationResults(c *gin.Context) {
-	teff := c.Query("teff")
-	logG := c.Query("logg")
-
-	t, err := strconv.ParseFloat(teff, 64)
-	if err != nil {
-		responseError(c, "couldn't parse teff as a float number", err)
-		return
-	}
-
-	l, err := strconv.ParseFloat(logG, 64)
-	if err != nil {
-		responseError(c, "couldn't parse logG as a float number", err)
-		return
-	}
-
-	s.sendResults(c, t, l)
-}
-
 func (s *server) getWorkerPools(c *gin.Context) {
 	s.logger.WithFields(logrus.Fields{"host": c.Request.Host, "url": c.Request.URL, "method": c.Request.Method, "user-agent": c.Request.UserAgent()}).Info("getting workerpools")
 
@@ -244,6 +225,18 @@ func (s *server) getWorkerPools(c *gin.Context) {
 		responseError(c, "couldn't get workerpool list", err)
 	} else {
 		c.JSON(http.StatusOK, gin.H{"data": workerPoolList})
+	}
+}
+
+func (s *server) getWorkerPoolByName(c *gin.Context) {
+	workerPoolName := c.Param("id")
+
+	workerPool := &workersv1.WorkerPool{}
+	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerPool)
+	if err != nil {
+		responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": workerPool})
 	}
 }
 

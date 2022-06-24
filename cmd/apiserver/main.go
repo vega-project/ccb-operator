@@ -30,7 +30,6 @@ func gatherOptions() options {
 
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
-	fs.StringVar(&o.resultsDir, "calculation-results-dir", "", "Path were the results of the calculations exist.")
 	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
 	o.simulator.bind(fs)
 
@@ -85,11 +84,12 @@ func main() {
 	r.GET("/bulks", s.getCalculationBulks)
 	r.GET("/bulk/:id", s.getCalculationBulkByName)
 	r.POST("/bulk/create", s.createCalculationBulk)
+	r.DELETE("/bulks/delete/:id", s.deleteCalculationBulk)
 
 	r.GET("/workerpools", s.getWorkerPools)
-
-	r.GET("/calculations/results", s.getCalculationResults)
-	r.GET("/calculations/results/:id", s.getCalculationResultsByID)
+	r.GET("/workerpool/:id", s.getWorkerPoolByName)
+	r.POST("workerpool/create", s.createWorkerPool)
+	r.DELETE("/workerpools/delete/:id", s.deleteWorkerPool)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
