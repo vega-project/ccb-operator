@@ -88,7 +88,7 @@ func main() {
 
 	r.GET("/workerpools", s.getWorkerPools)
 	r.GET("/workerpool/:id", s.getWorkerPoolByName)
-	r.POST("workerpool/create/:id", s.createWorkerPool)
+	r.POST("workerpool/create", s.createWorkerPool)
 	r.DELETE("/workerpools/delete/:id", s.deleteWorkerPool)
 
 	r.GET("/healthz", func(c *gin.Context) {

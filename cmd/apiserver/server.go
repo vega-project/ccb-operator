@@ -64,23 +64,30 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 }
 
 func (s *server) createWorkerPool(c *gin.Context) {
-	workerPoolName := c.Param("id")
-	workerPool := &workersv1.WorkerPool{}
-	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
-
-	workerPoolList := &workersv1.WorkerPoolList{}
-	if err := s.client.List(s.ctx, workerPoolList); err != nil {
-		responseError(c, "couldn't get the list of workerpools", err)
-	} else {
-		for _, wp := range workerPoolList.Items {
-			if wp.Name == workerPool.Name {
-				responseError(c, "workerpool with entered name already exists", err)
-				return
-			}
-		}
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		responseError(c, "couldn't read body", err)
+		return
 	}
 
-	s.logger.Info("Creating the workerpool...")
+	workerPool := &workersv1.WorkerPool{}
+
+	var NameBody struct {
+		Name string `json:"name,omitempty"`
+	}
+
+	if err := json.Unmarshal(body, &NameBody); err != nil {
+		responseError(c, "couldn't unmarshal body", err)
+	}
+
+	workerPool.Name = fmt.Sprintf("workerpool-%s", NameBody.Name)
+
+	if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPool.Name}, workerPool); err == nil {
+		responseError(c, "workerpool with entered name already exists", err)
+		return
+	}
+
+	s.logger.Infof("Creating the workerpool %s...", workerPool.Name)
 
 	if err := s.client.Create(s.ctx, workerPool); err != nil {
 		responseError(c, "couldn't create calculation bulk", err)
@@ -95,7 +102,7 @@ func (s *server) deleteCalculationBulk(c *gin.Context) {
 		bulk := &bulkv1.CalculationBulk{}
 		err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcBulkName}, bulk)
 		if err != nil {
-			responseError(c, fmt.Sprintf("failed to get the calculation bulk %s", calcBulkName), err)
+			return err
 		}
 
 		if err := s.client.Delete(s.ctx, bulk); err != nil {
@@ -116,7 +123,7 @@ func (s *server) deleteWorkerPool(c *gin.Context) {
 		workerpool := &workersv1.WorkerPool{}
 		err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerpool)
 		if err != nil {
-			responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
+			return err
 		}
 
 		if err := s.client.Delete(s.ctx, workerpool); err != nil {
