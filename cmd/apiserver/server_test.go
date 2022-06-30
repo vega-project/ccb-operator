@@ -894,40 +894,16 @@ func TestGetWorkerPoolByName(t *testing.T) {
 func TestCreateWorkerPool(t *testing.T) {
 	testCases := []struct {
 		id                 string
-		body               string
+		name               string
 		initialWorkerPools []ctrlruntimeclient.Object
 		expected           []workersv1.WorkerPool
 	}{
 		{
-			id: "no initial workerpools in cluster",
-			body: `{
-					"metadata": {
-						"name": "test1"
-					},
-					"spec": {
-						"workers": {
-							"worker1-test-vega": {
-								"calculationsProcessed": 10,
-								"name": "Name1",
-								"node": "Node1"
-							},
-							"worker2-test-vega": {
-								"calculationsProcessed": 20,
-								"name": "Name2",
-								"node": "Node2"
-							}
-						}
-					}
-			  }`,
+			id:   "no initial workerpools in cluster",
+			name: "test1",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test1"},
-					Spec: workersv1.WorkerPoolSpec{
-						Workers: map[string]workersv1.Worker{
-							"worker1-test-vega": {Name: "Name1", Node: "Node1", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 10},
-							"worker2-test-vega": {Name: "Name2", Node: "Node2", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 20},
-						},
-					},
 				},
 			},
 		},
@@ -936,37 +912,13 @@ func TestCreateWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"}},
 			},
-			body: `{
-				"metadata": {
-					"name": "test2"
-				},
-				"spec": {
-					"workers": {
-						"worker1-test-vega": {
-							"calculationsProcessed": 30,
-							"name": "Name1",
-							"node": "Node1"
-						},
-						"worker2-test-vega": {
-							"calculationsProcessed": 40,
-							"name": "Name2",
-							"node": "Node2"
-						}
-					}
-				}
-		  }`,
+			name: "test2",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test2"},
-					Spec: workersv1.WorkerPoolSpec{
-						Workers: map[string]workersv1.Worker{
-							"worker1-test-vega": {Name: "Name1", Node: "Node1", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 30},
-							"worker2-test-vega": {Name: "Name2", Node: "Node2", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 40},
-						},
-					},
 				},
 			},
 		},
@@ -975,25 +927,7 @@ func TestCreateWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"}},
 			},
-			body: `{
-				"metadata": {
-					"name": "same-name"
-				},
-				"spec": {
-					"workers": {
-						"worker1-test-vega": {
-							"calculationsProcessed": 20,
-							"name": "Name1",
-							"node": "Node1"
-						},
-						"worker2-test-vega": {
-							"calculationsProcessed": 60,
-							"name": "Name2",
-							"node": "Node2"
-						}
-					}
-				}
-		  }`,
+			name: "same-name",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"},
@@ -1011,13 +945,13 @@ func TestCreateWorkerPool(t *testing.T) {
 			client: fakeClient,
 		}
 
-		req, err := http.NewRequest("POST", "/workerpool/create", bytes.NewBuffer([]byte(tc.body)))
+		req, err := http.NewRequest("POST", fmt.Sprintf("/workerpool/create/%s", tc.name), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		r := gin.Default()
-		r.POST("/workerpool/create", s.createWorkerPool)
+		r.POST("/workerpool/create/:id", s.createWorkerPool)
 
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)

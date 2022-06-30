@@ -64,18 +64,9 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 }
 
 func (s *server) createWorkerPool(c *gin.Context) {
-	body, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		responseError(c, "couldn't read body", err)
-		return
-	}
-
+	workerPoolName := c.Param("id")
 	workerPool := &workersv1.WorkerPool{}
-	if err := json.Unmarshal(body, &workerPool); err != nil {
-		responseError(c, "couldn't unmarshal body", err)
-	}
-
-	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPool.Name)
+	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
 
 	workerPoolList := &workersv1.WorkerPoolList{}
 	if err := s.client.List(s.ctx, workerPoolList); err != nil {
@@ -115,7 +106,7 @@ func (s *server) deleteCalculationBulk(c *gin.Context) {
 		}
 		return nil
 	}); err != nil {
-		responseError(c, "retryOnConflict method failed", err)
+		c.JSON(http.StatusInternalServerError, response("500", http.StatusInternalServerError))
 	}
 }
 
@@ -136,7 +127,7 @@ func (s *server) deleteWorkerPool(c *gin.Context) {
 		}
 		return nil
 	}); err != nil {
-		responseError(c, "retryOnConflict method failed", err)
+		c.JSON(http.StatusInternalServerError, response("500", http.StatusInternalServerError))
 	}
 }
 
