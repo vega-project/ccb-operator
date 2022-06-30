@@ -894,15 +894,13 @@ func TestGetWorkerPoolByName(t *testing.T) {
 func TestCreateWorkerPool(t *testing.T) {
 	testCases := []struct {
 		id                 string
-		body               string
+		name               string
 		initialWorkerPools []ctrlruntimeclient.Object
 		expected           []workersv1.WorkerPool
 	}{
 		{
-			id: "no initial workerpools in cluster",
-			body: `{
-					"name": "test1"
-				}`,
+			id:   "no initial workerpools in cluster",
+			name: "test1",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test1"},
@@ -914,9 +912,7 @@ func TestCreateWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"}},
 			},
-			body: `{
-				"name": "test2"
-			}`,
+			name: "test2",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"},
@@ -931,9 +927,7 @@ func TestCreateWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"}},
 			},
-			body: `{
-				"name": "same-name"
-			}`,
+			name: "same-name",
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"},
@@ -951,10 +945,14 @@ func TestCreateWorkerPool(t *testing.T) {
 			client: fakeClient,
 		}
 
-		req, err := http.NewRequest("POST", "/workerpool/create", bytes.NewBuffer([]byte(tc.body)))
+		req, err := http.NewRequest("POST", "/workerpool/create", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		q := req.URL.Query()
+		q.Add("name", fmt.Sprintf("%v", tc.name))
+		req.URL.RawQuery = q.Encode()
 
 		r := gin.Default()
 		r.POST("/workerpool/create", s.createWorkerPool)

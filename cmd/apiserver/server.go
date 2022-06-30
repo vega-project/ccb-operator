@@ -64,23 +64,10 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 }
 
 func (s *server) createWorkerPool(c *gin.Context) {
-	body, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		responseError(c, "couldn't read body", err)
-		return
-	}
+	workerPoolName := c.Query("name")
 
 	workerPool := &workersv1.WorkerPool{}
-
-	var NameBody struct {
-		Name string `json:"name,omitempty"`
-	}
-
-	if err := json.Unmarshal(body, &NameBody); err != nil {
-		responseError(c, "couldn't unmarshal body", err)
-	}
-
-	workerPool.Name = fmt.Sprintf("workerpool-%s", NameBody.Name)
+	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
 
 	if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPool.Name}, workerPool); err == nil {
 		responseError(c, "workerpool with entered name already exists", err)
