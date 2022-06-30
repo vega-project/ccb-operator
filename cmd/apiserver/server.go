@@ -69,11 +69,6 @@ func (s *server) createWorkerPool(c *gin.Context) {
 	workerPool := &workersv1.WorkerPool{}
 	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
 
-	if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPool.Name}, workerPool); err == nil {
-		responseError(c, "workerpool with entered name already exists", err)
-		return
-	}
-
 	s.logger.Infof("Creating the workerpool %s...", workerPool.Name)
 
 	if err := s.client.Create(s.ctx, workerPool); err != nil {
