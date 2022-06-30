@@ -15,6 +15,7 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
@@ -69,69 +70,74 @@ func (s *server) createWorkerPool(c *gin.Context) {
 		return
 	}
 
-	workerPoolName := fmt.Sprintf("workerpool-%s", util.InputHash(body))
-	var workerPools struct {
-		Workers        map[string]workersv1.Worker `json:"workers,omitempty"`
-		CompletionTime metav1.Time                 `json:"completionTime,omitempty"`
-		CreationTime   metav1.Time                 `json:"creationTime,omitempty"`
-		PendingTime    metav1.Time                 `json:"pendingTime,omitempty"`
+	workerPool := &workersv1.WorkerPool{}
+	if err := json.Unmarshal(body, &workerPool); err != nil {
+		responseError(c, "couldn't unmarshal body", err)
 	}
 
-	if err := json.Unmarshal(body, &workerPools); err != nil {
-		responseError(c, "couldn't unmarshal body", err)
+	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPool.Name)
+
+	workerPoolList := &workersv1.WorkerPoolList{}
+	if err := s.client.List(s.ctx, workerPoolList); err != nil {
+		responseError(c, "couldn't get the list of workerpools", err)
+	} else {
+		for _, wp := range workerPoolList.Items {
+			if wp.Name == workerPool.Name {
+				responseError(c, "workerpool with entered name already exists", err)
+				return
+			}
+		}
 	}
 
 	s.logger.Info("Creating the workerpool...")
 
-	wp := &workersv1.WorkerPool{
-		ObjectMeta: metav1.ObjectMeta{Name: workerPoolName, Namespace: s.namespace},
-		Spec: workersv1.WorkerPoolSpec{
-			Workers: workerPools.Workers,
-		},
-		Status: workersv1.WorkerPoolStatus{
-			CreationTime:   &workerPools.CreationTime,
-			PendingTime:    &workerPools.PendingTime,
-			CompletionTime: &workerPools.CompletionTime,
-		},
-	}
-
-	if err := s.client.Create(s.ctx, wp); err != nil {
+	if err := s.client.Create(s.ctx, workerPool); err != nil {
 		responseError(c, "couldn't create calculation bulk", err)
 	} else {
-		c.JSON(http.StatusOK, gin.H{"data": wp})
+		c.JSON(http.StatusOK, gin.H{"data": workerPool})
 	}
 }
 
 func (s *server) deleteCalculationBulk(c *gin.Context) {
 	calcBulkName := c.Param("id")
-	bulk := &bulkv1.CalculationBulk{}
-	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcBulkName}, bulk)
-	if err != nil {
-		responseError(c, fmt.Sprintf("failed to get the calculation bulk %s", calcBulkName), err)
-	}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		bulk := &bulkv1.CalculationBulk{}
+		err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcBulkName}, bulk)
+		if err != nil {
+			responseError(c, fmt.Sprintf("failed to get the calculation bulk %s", calcBulkName), err)
+		}
 
-	if err := s.client.Delete(s.ctx, bulk); err != nil {
-		responseError(c, fmt.Sprintf("failed to delete the calculation bulk %s", calcBulkName), err)
-	} else {
-		c.JSON(http.StatusOK, response(fmt.Sprintf("calculation bulk %s has been deleted", calcBulkName), http.StatusOK))
+		if err := s.client.Delete(s.ctx, bulk); err != nil {
+			responseError(c, fmt.Sprintf("failed to delete the calculation bulk %s", calcBulkName), err)
+			return err
+		} else {
+			c.JSON(http.StatusOK, response(fmt.Sprintf("calculation bulk %s has been deleted", calcBulkName), http.StatusOK))
+		}
+		return nil
+	}); err != nil {
+		responseError(c, "retryOnConflict method failed", err)
 	}
-
 }
 
 func (s *server) deleteWorkerPool(c *gin.Context) {
 	workerPoolName := c.Param("id")
-	workerpool := &workersv1.WorkerPool{}
-	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerpool)
-	if err != nil {
-		responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
-	}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		workerpool := &workersv1.WorkerPool{}
+		err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerpool)
+		if err != nil {
+			responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
+		}
 
-	if err := s.client.Delete(s.ctx, workerpool); err != nil {
-		responseError(c, fmt.Sprintf("failed to delete the workerpool %s", workerPoolName), err)
-	} else {
-		c.JSON(http.StatusOK, response(fmt.Sprintf("workerpool %s has been deleted", workerPoolName), http.StatusOK))
+		if err := s.client.Delete(s.ctx, workerpool); err != nil {
+			responseError(c, fmt.Sprintf("failed to delete the workerpool %s", workerPoolName), err)
+			return err
+		} else {
+			c.JSON(http.StatusOK, response(fmt.Sprintf("workerpool %s has been deleted", workerPoolName), http.StatusOK))
+		}
+		return nil
+	}); err != nil {
+		responseError(c, "retryOnConflict method failed", err)
 	}
-
 }
 
 func (s *server) deleteCalculation(c *gin.Context) {

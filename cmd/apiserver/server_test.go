@@ -901,22 +901,27 @@ func TestCreateWorkerPool(t *testing.T) {
 		{
 			id: "no initial workerpools in cluster",
 			body: `{
-					"workers": {
-						"worker1-test-vega": {
-							"calculationsProcessed": 10,
-							"name": "Name1",
-							"node": "Node1"
-						},
-						"worker2-test-vega": {
-							"calculationsProcessed": 20,
-							"name": "Name2",
-							"node": "Node2"
+					"metadata": {
+						"name": "test1"
+					},
+					"spec": {
+						"workers": {
+							"worker1-test-vega": {
+								"calculationsProcessed": 10,
+								"name": "Name1",
+								"node": "Node1"
+							},
+							"worker2-test-vega": {
+								"calculationsProcessed": 20,
+								"name": "Name2",
+								"node": "Node2"
+							}
 						}
 					}
 			  }`,
 			expected: []workersv1.WorkerPool{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-lmskqxlm1qhfdvyt"},
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test1"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
 							"worker1-test-vega": {Name: "Name1", Node: "Node1", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 10},
@@ -932,16 +937,21 @@ func TestCreateWorkerPool(t *testing.T) {
 				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"}},
 			},
 			body: `{
-				"workers": {
-					"worker1-test-vega": {
-						"calculationsProcessed": 30,
-						"name": "Name1",
-						"node": "Node1"
-					},
-					"worker2-test-vega": {
-						"calculationsProcessed": 40,
-						"name": "Name2",
-						"node": "Node2"
+				"metadata": {
+					"name": "test2"
+				},
+				"spec": {
+					"workers": {
+						"worker1-test-vega": {
+							"calculationsProcessed": 30,
+							"name": "Name1",
+							"node": "Node1"
+						},
+						"worker2-test-vega": {
+							"calculationsProcessed": 40,
+							"name": "Name2",
+							"node": "Node2"
+						}
 					}
 				}
 		  }`,
@@ -950,13 +960,43 @@ func TestCreateWorkerPool(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-nhil147z6y82jvgk"},
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test2"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
 							"worker1-test-vega": {Name: "Name1", Node: "Node1", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 30},
 							"worker2-test-vega": {Name: "Name2", Node: "Node2", RegisteredTime: nil, LastUpdateTime: nil, CalculationsProcessed: 40},
 						},
 					},
+				},
+			},
+		},
+		{
+			id: "initial workerpool in a cluster, try to create a new workerpool with the same name",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"}},
+			},
+			body: `{
+				"metadata": {
+					"name": "same-name"
+				},
+				"spec": {
+					"workers": {
+						"worker1-test-vega": {
+							"calculationsProcessed": 20,
+							"name": "Name1",
+							"node": "Node1"
+						},
+						"worker2-test-vega": {
+							"calculationsProcessed": 60,
+							"name": "Name2",
+							"node": "Node2"
+						}
+					}
+				}
+		  }`,
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"},
 				},
 			},
 		},
