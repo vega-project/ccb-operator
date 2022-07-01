@@ -804,12 +804,6 @@ func TestGetWorkerPoolByName(t *testing.T) {
 							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
 						},
 					},
-					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "vegaproject.io/v1"},
-					Status: workersv1.WorkerPoolStatus{
-						CreationTime:   &metav1.Time{},
-						PendingTime:    &metav1.Time{},
-						CompletionTime: &metav1.Time{},
-					},
 				},
 			},
 			expected: workersv1.WorkerPool{
@@ -834,14 +828,8 @@ func TestGetWorkerPoolByName(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-does-not-exist"},
 					Spec: workersv1.WorkerPoolSpec{
 						Workers: map[string]workersv1.Worker{
-							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
+							"worker1": {Name: "worker-name"},
 						},
-					},
-					TypeMeta: metav1.TypeMeta{Kind: "WorkerPool"},
-					Status: workersv1.WorkerPoolStatus{
-						CreationTime:   &metav1.Time{},
-						PendingTime:    &metav1.Time{},
-						CompletionTime: &metav1.Time{},
 					},
 				},
 			},
@@ -897,6 +885,7 @@ func TestCreateWorkerPool(t *testing.T) {
 		name               string
 		initialWorkerPools []ctrlruntimeclient.Object
 		expected           []workersv1.WorkerPool
+		errorExpected      bool
 	}{
 		{
 			id:   "no initial workerpools in cluster",
@@ -933,6 +922,7 @@ func TestCreateWorkerPool(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"},
 				},
 			},
+			errorExpected: true,
 		},
 	}
 
@@ -976,7 +966,7 @@ func TestCreateWorkerPool(t *testing.T) {
 		if diff := cmp.Diff(tc.expected, workerPoolList.Items,
 			cmpopts.IgnoreFields(metav1.Time{}, "Time"),
 			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
-			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" {
+			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" && !tc.errorExpected {
 			t.Fatal(diff)
 		}
 	}
@@ -995,22 +985,12 @@ func TestDeleteCalculationBulk(t *testing.T) {
 			calculationBulkToDelete: "bulk-wrong-name",
 			initialCalculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-1"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-1"},
 				},
 			},
 			expected: []bulkv1.CalculationBulk{
 				{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-1"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-1"},
 				},
 			},
 			errorExpected: true,
@@ -1020,12 +1000,7 @@ func TestDeleteCalculationBulk(t *testing.T) {
 			calculationBulkToDelete: "bulk-delete",
 			initialCalculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-delete"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-delete"},
 				},
 			},
 			expected: []bulkv1.CalculationBulk{},
@@ -1035,30 +1010,15 @@ func TestDeleteCalculationBulk(t *testing.T) {
 			calculationBulkToDelete: "bulk-delete",
 			initialCalculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-delete"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-delete"},
 				},
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains"},
 				},
 			},
 			expected: []bulkv1.CalculationBulk{
 				{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: nil,
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains"},
 				},
 			},
 		},
@@ -1067,38 +1027,18 @@ func TestDeleteCalculationBulk(t *testing.T) {
 			calculationBulkToDelete: "bulk-wrong-name",
 			initialCalculationBulks: []ctrlruntimeclient.Object{
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains-1"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-1"},
 				},
 				&bulkv1.CalculationBulk{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains-2"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: map[string]bulkv1.Calculation{},
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-2"},
 				},
 			},
 			expected: []bulkv1.CalculationBulk{
 				{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains-1"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: nil,
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-1"},
 				},
 				{
-					ObjectMeta:   metav1.ObjectMeta{Name: "bulk-remains-2"},
-					RootFolder:   "root-folder",
-					WorkerPool:   "vega-workerpool",
-					InputFiles:   &v1.InputFiles{},
-					Calculations: nil,
-					Status:       bulkv1.CalculationBulkStatus{},
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-2"},
 				},
 			},
 			errorExpected: true,
@@ -1106,7 +1046,6 @@ func TestDeleteCalculationBulk(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		print("hello")
 		t.Run(tc.id, func(t *testing.T) {
 			fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialCalculationBulks...).Build()
 
@@ -1161,15 +1100,11 @@ func TestDeleteWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			errorExpected: true,
@@ -1180,8 +1115,6 @@ func TestDeleteWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-delete"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			expected: []workersv1.WorkerPool{},
@@ -1192,20 +1125,14 @@ func TestDeleteWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-delete"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 		},
@@ -1215,25 +1142,17 @@ func TestDeleteWorkerPool(t *testing.T) {
 			initialWorkerPools: []ctrlruntimeclient.Object{
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-1"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 				&workersv1.WorkerPool{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-2"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			expected: []workersv1.WorkerPool{
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-1"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-2"},
-					Spec:       workersv1.WorkerPoolSpec{},
-					Status:     workersv1.WorkerPoolStatus{},
 				},
 			},
 			errorExpected: true,

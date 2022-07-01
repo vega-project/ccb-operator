@@ -66,9 +66,9 @@ func (s *server) createCalculationBulk(c *gin.Context) {
 func (s *server) createWorkerPool(c *gin.Context) {
 	workerPoolName := c.Query("name")
 
-	workerPool := &workersv1.WorkerPool{}
-	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
-	workerPool.Namespace = s.namespace
+	workerPool := &workersv1.WorkerPool{
+		ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("workerpool-%s", workerPoolName), Namespace: s.namespace},
+	}
 
 	s.logger.Infof("Creating the workerpool %s...", workerPool.Name)
 
