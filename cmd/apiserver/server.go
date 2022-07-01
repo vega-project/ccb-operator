@@ -68,11 +68,12 @@ func (s *server) createWorkerPool(c *gin.Context) {
 
 	workerPool := &workersv1.WorkerPool{}
 	workerPool.Name = fmt.Sprintf("workerpool-%s", workerPoolName)
+	workerPool.Namespace = s.namespace
 
 	s.logger.Infof("Creating the workerpool %s...", workerPool.Name)
 
 	if err := s.client.Create(s.ctx, workerPool); err != nil {
-		responseError(c, "couldn't create calculation bulk", err)
+		responseError(c, "couldn't create workerpool", err)
 	} else {
 		c.JSON(http.StatusOK, gin.H{"data": workerPool})
 	}
