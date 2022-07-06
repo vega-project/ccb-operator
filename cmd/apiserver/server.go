@@ -74,9 +74,16 @@ func (s *server) createWorkerPool(c *gin.Context) {
 
 	if err := s.client.Create(s.ctx, workerPool); err != nil {
 		responseError(c, "couldn't create workerpool", err)
-	} else {
-		c.JSON(http.StatusOK, gin.H{"data": workerPool})
+		return
 	}
+
+	newWorkerPool := &workersv1.WorkerPool{}
+	if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: workerPool.GetNamespace(), Name: workerPool.GetName()}, newWorkerPool); err != nil {
+		responseError(c, "couldn't get the newly created workerpool", err)
+	} else {
+		c.JSON(http.StatusOK, gin.H{"data": newWorkerPool})
+	}
+
 }
 
 func (s *server) deleteCalculationBulk(c *gin.Context) {
