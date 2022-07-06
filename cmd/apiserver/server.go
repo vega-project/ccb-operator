@@ -77,11 +77,17 @@ func (s *server) createWorkerPool(c *gin.Context) {
 		return
 	}
 
-	newWorkerPool := &workersv1.WorkerPool{}
-	if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: workerPool.GetNamespace(), Name: workerPool.GetName()}, newWorkerPool); err != nil {
-		responseError(c, "couldn't get the newly created workerpool", err)
-	} else {
-		c.JSON(http.StatusOK, gin.H{"data": newWorkerPool})
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		newWorkerPool := &workersv1.WorkerPool{}
+		if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: workerPool.GetNamespace(), Name: workerPool.GetName()}, newWorkerPool); err != nil {
+			responseError(c, "couldn't get the newly created workerpool", err)
+		} else {
+			c.JSON(http.StatusOK, gin.H{"data": newWorkerPool})
+			return err
+		}
+		return nil
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, response("500", http.StatusInternalServerError))
 	}
 
 }
@@ -225,12 +231,17 @@ func (s *server) getWorkerPools(c *gin.Context) {
 func (s *server) getWorkerPoolByName(c *gin.Context) {
 	workerPoolName := c.Param("id")
 
-	workerPool := &workersv1.WorkerPool{}
-	err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerPool)
-	if err != nil {
-		responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
-	} else {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		workerPool := &workersv1.WorkerPool{}
+		err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: workerPoolName}, workerPool)
+		if err != nil {
+			responseError(c, fmt.Sprintf("failed to get the workerpool %s", workerPoolName), err)
+			return err
+		}
 		c.JSON(http.StatusOK, gin.H{"data": workerPool})
+		return nil
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, response("500", http.StatusInternalServerError))
 	}
 }
 
