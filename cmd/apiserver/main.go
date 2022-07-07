@@ -9,8 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	_ "github.com/vega-project/ccb-operator/cmd/apiserver/docs"
 
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -90,6 +94,9 @@ func main() {
 
 	r.GET("/calculations/results", s.getCalculationResults)
 	r.GET("/calculations/results/:id", s.getCalculationResultsByID)
+
+	url := ginSwagger.URL("http://127.0.0.1:8080/swagger/doc.json")
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
