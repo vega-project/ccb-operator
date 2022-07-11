@@ -786,3 +786,416 @@ func TestGetWorkerPools(t *testing.T) {
 		}
 	}
 }
+
+func TestGetWorkerPoolByName(t *testing.T) {
+	testCases := []struct {
+		id                string
+		initialWorkerPool []ctrlruntimeclient.Object
+		expected          workersv1.WorkerPool
+		errorExpected     bool
+	}{
+		{
+			id: "get one workerpool by name",
+			initialWorkerPool: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+					Spec: workersv1.WorkerPoolSpec{
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name", RegisteredTime: &metav1.Time{}, State: workersv1.WorkerUnknownState, LastUpdateTime: &metav1.Time{}, CalculationsProcessed: 0},
+						},
+					},
+				},
+			},
+			expected: workersv1.WorkerPool{
+				TypeMeta:   metav1.TypeMeta{Kind: "WorkerPool", APIVersion: "vegaproject.io/v1"},
+				ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+				Spec: workersv1.WorkerPoolSpec{
+					Workers: map[string]workersv1.Worker{
+						"worker1": {Name: "worker-name", RegisteredTime: nil, State: workersv1.WorkerUnknownState, LastUpdateTime: nil, CalculationsProcessed: 0},
+					},
+				},
+				Status: workersv1.WorkerPoolStatus{
+					CreationTime:   nil,
+					PendingTime:    nil,
+					CompletionTime: nil,
+				},
+			},
+		},
+		{
+			id: "get a workerpools by a wrong name",
+			initialWorkerPool: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-does-not-exist"},
+					Spec: workersv1.WorkerPoolSpec{
+						Workers: map[string]workersv1.Worker{
+							"worker1": {Name: "worker-name"},
+						},
+					},
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialWorkerPool...).Build()
+
+		s := server{
+			logger: logrus.WithField("test-name", tc.id),
+			ctx:    context.Background(),
+			client: fakeClient,
+		}
+
+		req, err := http.NewRequest("GET", fmt.Sprintf("/workerpool/%s", tc.initialWorkerPool[0].GetName()), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		r := gin.Default()
+		r.GET("/workerpool/:id", s.getWorkerPoolByName)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("Handler returned wrong status code: got %v want %v",
+				status, http.StatusOK)
+		}
+
+		var actualData struct {
+			Data *workersv1.WorkerPool `json:"data,omitempty"`
+		}
+
+		err = json.Unmarshal(rr.Body.Bytes(), &actualData)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expected, *actualData.Data, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+			if !tc.errorExpected {
+				t.Fatal(diff)
+			}
+		}
+	}
+}
+
+func TestCreateWorkerPool(t *testing.T) {
+	testCases := []struct {
+		id                 string
+		name               string
+		initialWorkerPools []ctrlruntimeclient.Object
+		expected           []workersv1.WorkerPool
+		errorExpected      bool
+	}{
+		{
+			id:   "no initial workerpools in cluster",
+			name: "test1",
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test1"},
+				},
+			},
+		},
+		{
+			id: "initial workerpools in cluster",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"}},
+			},
+			name: "test2",
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-4d5g2z03whjr64v8"},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-test2"},
+				},
+			},
+		},
+		{
+			id: "initial workerpool in a cluster, try to create a new workerpool with the same name",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"}},
+			},
+			name: "same-name",
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-same-name"},
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialWorkerPools...).Build()
+
+		s := server{
+			logger: logrus.WithField("test-name", tc.id),
+			ctx:    context.Background(),
+			client: fakeClient,
+		}
+
+		req, err := http.NewRequest("POST", "/workerpool/create", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		q := req.URL.Query()
+		q.Add("name", fmt.Sprintf("%v", tc.name))
+		req.URL.RawQuery = q.Encode()
+
+		r := gin.Default()
+		r.POST("/workerpool/create", s.createWorkerPool)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		var actualData struct {
+			Data *workersv1.WorkerPool `json:"data,omitempty"`
+		}
+
+		if err := json.Unmarshal(rr.Body.Bytes(), &actualData); err != nil {
+			t.Fatal(err)
+		}
+
+		var workerPoolList workersv1.WorkerPoolList
+		if err := fakeClient.List(s.ctx, &workerPoolList); err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(tc.expected, workerPoolList.Items,
+			cmpopts.IgnoreFields(metav1.Time{}, "Time"),
+			cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+			cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" && !tc.errorExpected {
+			t.Fatal(diff)
+		}
+	}
+}
+
+func TestDeleteCalculationBulk(t *testing.T) {
+	testCases := []struct {
+		id                      string
+		calculationBulkToDelete string
+		initialCalculationBulks []ctrlruntimeclient.Object
+		expected                []bulkv1.CalculationBulk
+		errorExpected           bool
+	}{
+		{
+			id:                      "one calculation bulk, none gets deleted",
+			calculationBulkToDelete: "bulk-wrong-name",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-1"},
+				},
+			},
+			expected: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-1"},
+				},
+			},
+			errorExpected: true,
+		},
+		{
+			id:                      "one calculation bulk, one gets deleted",
+			calculationBulkToDelete: "bulk-delete",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-delete"},
+				},
+			},
+			expected: []bulkv1.CalculationBulk{},
+		},
+		{
+			id:                      "one out of X calculation bulks get deleted",
+			calculationBulkToDelete: "bulk-delete",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-delete"},
+				},
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains"},
+				},
+			},
+			expected: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains"},
+				},
+			},
+		},
+		{
+			id:                      "none out of X calculation bulks get deleted",
+			calculationBulkToDelete: "bulk-wrong-name",
+			initialCalculationBulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-1"},
+				},
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-2"},
+				},
+			},
+			expected: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-1"},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "bulk-remains-2"},
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.id, func(t *testing.T) {
+			fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialCalculationBulks...).Build()
+
+			s := server{
+				logger: logrus.WithField("test-name", tc.id),
+				ctx:    context.Background(),
+				client: fakeClient,
+			}
+
+			req, err := http.NewRequest("DELETE", fmt.Sprintf("/bulks/delete/%s", tc.calculationBulkToDelete), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := gin.Default()
+			r.DELETE("/bulks/delete/:id", s.deleteCalculationBulk)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			var calculationBulkList bulkv1.CalculationBulkList
+			if err := fakeClient.List(s.ctx, &calculationBulkList); err != nil {
+				t.Fatal(err)
+			}
+
+			if status := rr.Code; status == http.StatusOK {
+				logrus.Info(rr.Body)
+			} else if status != http.StatusOK {
+				logrus.Info(rr.Body)
+			}
+
+			if diff := cmp.Diff(tc.expected, calculationBulkList.Items,
+				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" && !tc.errorExpected {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
+func TestDeleteWorkerPool(t *testing.T) {
+	testCases := []struct {
+		id                 string
+		workerPoolToDelete string
+		initialWorkerPools []ctrlruntimeclient.Object
+		expected           []workersv1.WorkerPool
+		errorExpected      bool
+	}{
+		{
+			id:                 "one workerpool, none gets deleted",
+			workerPoolToDelete: "workerpool-wrong-name",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+				},
+			},
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-1"},
+				},
+			},
+			errorExpected: true,
+		},
+		{
+			id:                 "one workerpool, one gets deleted",
+			workerPoolToDelete: "workerpool-delete",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-delete"},
+				},
+			},
+			expected: []workersv1.WorkerPool{},
+		},
+		{
+			id:                 "one out of X workerpools get deleted",
+			workerPoolToDelete: "workerpool-delete",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains"},
+				},
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-delete"},
+				},
+			},
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains"},
+				},
+			},
+		},
+		{
+			id:                 "none out of X workerpools get deleted",
+			workerPoolToDelete: "workerpool-wrong-name",
+			initialWorkerPools: []ctrlruntimeclient.Object{
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-1"},
+				},
+				&workersv1.WorkerPool{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-2"},
+				},
+			},
+			expected: []workersv1.WorkerPool{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-1"},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "workerpool-remains-2"},
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.id, func(t *testing.T) {
+			fakeClient := fakectrlruntimeclient.NewClientBuilder().WithObjects(tc.initialWorkerPools...).Build()
+
+			s := server{
+				logger: logrus.WithField("test-name", tc.id),
+				ctx:    context.Background(),
+				client: fakeClient,
+			}
+
+			req, err := http.NewRequest("DELETE", fmt.Sprintf("/workerpools/delete/%s", tc.workerPoolToDelete), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			r := gin.Default()
+			r.DELETE("/workerpools/delete/:id", s.deleteWorkerPool)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			var workerPoolList workersv1.WorkerPoolList
+			if err := fakeClient.List(s.ctx, &workerPoolList); err != nil {
+				t.Fatal(err)
+			}
+
+			if status := rr.Code; status == http.StatusOK {
+				logrus.Info(rr.Body)
+			} else if status != http.StatusOK {
+				logrus.Info(rr.Body)
+			}
+
+			if diff := cmp.Diff(tc.expected, workerPoolList.Items,
+				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+				cmpopts.IgnoreFields(metav1.TypeMeta{}, "Kind", "APIVersion")); diff != "" && !tc.errorExpected {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
