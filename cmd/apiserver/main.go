@@ -95,8 +95,7 @@ func main() {
 	r.POST("workerpool/create", s.createWorkerPool)
 	r.DELETE("/workerpools/delete/:id", s.deleteWorkerPool)
 
-	url := ginSwagger.URL("http://127.0.0.1:8080/swagger/doc.json")
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "OK"})
