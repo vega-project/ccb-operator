@@ -23,3 +23,11 @@ go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen object \
 go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:allowDangerousTypes=true \
     paths=./pkg/apis/calculationbulk/v1 \
     output:dir=./pkg/apis/calculationbulk/v1
+
+
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen object \
+    paths=./pkg/apis/calculationbulkfactory/v1 \
+    output:dir=./pkg/apis/calculationbulkfactory/v1
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:allowDangerousTypes=true \
+    paths=./pkg/apis/calculationbulkfactory/v1 \
+    output:dir=./pkg/apis/calculationbulkfactory/v1
