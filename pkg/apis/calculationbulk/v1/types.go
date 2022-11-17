@@ -15,15 +15,13 @@ type CalculationBulk struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	RootFolder   string                 `json:"root_folder,omitempty"`
-	WorkerPool   string                 `json:"workerPool,omitempty"`
+	WorkerPool   string                 `json:"worker_pool"`
 	InputFiles   *v1.InputFiles         `json:"input_files,omitempty"`
-	Calculations map[string]Calculation `json:"calculations,omitempty"`
+	Calculations map[string]Calculation `json:"calculations"`
 	Status       CalculationBulkStatus  `json:"status,omitempty"`
 }
 
 type Calculation struct {
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
 	Pipeline   v1.Pipeline         `json:"pipeline,omitempty"`
 	Params     v1.Params           `json:"params,omitempty"`
 	Steps      []v1.Step           `json:"steps,omitempty"`

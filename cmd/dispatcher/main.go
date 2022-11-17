@@ -2,20 +2,20 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
+	"github.com/vega-project/ccb-operator/pkg/dispatcher/scheduler"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -25,37 +25,29 @@ type options struct {
 	dryRun    bool
 }
 
-func gatherOptions() options {
+func gatherOptions() (options, error) {
 	o := options{}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
-	fs.BoolVar(&o.dryRun, "dry-run", true, "")
+	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists.")
+	fs.BoolVar(&o.dryRun, "dry-run", true, "Whether to mutate the objects.")
 
-	fs.Parse(os.Args[1:])
-	return o
-}
-
-func validateOptions(o options) error {
-	if len(o.namespace) == 0 {
-		return fmt.Errorf("--namespace was not provided")
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return o, err
 	}
-	return nil
+	return o, nil
 }
 
 func main() {
 	logger := logrus.New()
-
-	o := gatherOptions()
-	err := validateOptions(o)
+	o, err := gatherOptions()
 	if err != nil {
 		logger.WithError(err).Fatal("invalid options")
-		os.Exit(1)
 	}
 
 	clusterConfig, err := util.LoadClusterConfig()
 	if err != nil {
-		logger.WithError(err).Error("could not load cluster clusterConfig")
+		logger.WithError(err).Fatal("could not load cluster clusterConfig")
 	}
 
 	go func() {
@@ -63,10 +55,11 @@ func main() {
 		http.ListenAndServe(":3001", nil)
 	}()
 
-	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{
-		DryRunClient: o.dryRun,
-		Logger:       ctrlruntimelog.NullLogger{},
-	})
+	calculationCh := make(chan v1.Calculation)
+	stop := make(chan struct{})
+	wg := &sync.WaitGroup{}
+
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{DryRunClient: o.dryRun})
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
 	}
@@ -88,11 +81,18 @@ func main() {
 		logrus.WithError(err).Fatal("Failed to add workers controller to manager")
 	}
 
-	if err := bulks.AddToManager(ctx, mgr, o.namespace); err != nil {
+	if err := bulks.AddToManager(ctx, mgr, o.namespace, calculationCh); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
+	sched := scheduler.NewScheduler(calculationCh, mgr.GetClient())
+
+	wg.Add(1)
+	go sched.Run(ctx, stop, wg)
+
 	if err := mgr.Start(ctx); err != nil {
-		logrus.WithError(err).Fatal("Manager ended with error")
+		logrus.WithError(err).Error("Manager ended with error")
+		stop <- struct{}{}
+		wg.Wait()
 	}
 }

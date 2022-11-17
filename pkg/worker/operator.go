@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"k8s.io/client-go/rest"
 
@@ -49,10 +48,7 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan util.Result)
 	calcErrorChan := make(chan string)
 
-	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
-		DryRunClient: op.dryRun,
-		Logger:       ctrlruntimelog.NullLogger{},
-	})
+	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{DryRunClient: op.dryRun})
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}

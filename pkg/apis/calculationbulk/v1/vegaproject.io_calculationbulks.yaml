@@ -39,8 +39,6 @@ spec:
                     symlink:
                       type: boolean
                   type: object
-                metadata:
-                  type: object
                 params:
                   properties:
                     log_g:
@@ -99,8 +97,11 @@ spec:
               state:
                 type: string
             type: object
-          workerPool:
+          worker_pool:
             type: string
+        required:
+        - calculations
+        - worker_pool
         type: object
     served: true
     storage: true

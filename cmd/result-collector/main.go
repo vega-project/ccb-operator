@@ -8,7 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	resultcollector "github.com/vega-project/ccb-operator/pkg/result-collector"
@@ -59,10 +58,7 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Error("could not load cluster clusterConfig")
 	}
-	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{
-		DryRunClient: o.dryRun,
-		Logger:       ctrlruntimelog.NullLogger{},
-	})
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{DryRunClient: o.dryRun})
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
 	}

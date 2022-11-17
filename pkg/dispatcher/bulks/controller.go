@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
-	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -25,12 +25,13 @@ const (
 	controllerName = "bulks"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns string) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns string, calculationCh chan v1.Calculation) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
 		Reconciler: &reconciler{
-			logger: logrus.WithField("controller", controllerName),
-			client: mgr.GetClient(),
+			logger:        logrus.WithField("controller", controllerName),
+			client:        mgr.GetClient(),
+			calculationCh: calculationCh,
 		},
 	})
 	if err != nil {
@@ -66,8 +67,9 @@ func calculationBulkHandler() handler.EventHandler {
 }
 
 type reconciler struct {
-	logger *logrus.Entry
-	client ctrlruntimeclient.Client
+	logger        *logrus.Entry
+	client        ctrlruntimeclient.Client
+	calculationCh chan v1.Calculation
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -90,49 +92,20 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	sortedCalculations := util.GetSortedCreatedCalculations(bulk.Calculations)
-	for _, item := range sortedCalculations.Items {
-		workerpool := &workersv1.WorkerPool{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
-			return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, req.Namespace, err)
-		}
-
-		workerToReserve := util.GetFirstAvailableWorker(workerpool.Spec.Workers)
-		if workerToReserve == nil {
-			return nil
-		}
-
-		if err := util.UpdateWorkerStatusInPool(ctx, r.client, bulk.WorkerPool, workerToReserve.Node, req.Namespace, workersv1.WorkerReservedState); err != nil {
-			return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
-		}
-
-		calculation := item.Calculation
-		name := item.Name
-		// we assume that if the phase is empty, then the calculation haven't yet been processed.
-		calc := util.NewCalculation(&calculation)
-		logger = logger.WithField("calc-name", calc.Name).WithField("calc-bulk-name", name)
-
-		calc.InputFiles = calculation.InputFiles
-		calc.Pipeline = calculation.Pipeline
-		calc.Assign = workerToReserve.Name
-		calc.Namespace = req.Namespace
-		calc.Labels = map[string]string{
-			util.BulkLabel:            bulk.Name,
-			util.CalculationNameLabel: name,
-			"vegaproject.io/assign":   workerToReserve.Name,
-			util.CalcRootFolder:       bulk.RootFolder,
-		}
-
-		logger.Info("Creating calculation.")
-		if err := r.client.Create(ctx, calc); err != nil {
-			if err := util.UpdateWorkerStatusInPool(ctx, r.client, bulk.WorkerPool, workerToReserve.Node, req.Namespace, workersv1.WorkerAvailableState); err != nil {
-				return fmt.Errorf("failed to update worker's state in worker pool: %w", err)
+	for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
+		if item.Calculation.Phase == "" {
+			calc := util.NewCalculation(&item.Calculation)
+			calc.InputFiles = item.Calculation.InputFiles
+			calc.Pipeline = item.Calculation.Pipeline
+			calc.Namespace = req.Namespace
+			calc.WorkerPool = bulk.WorkerPool
+			calc.Labels = map[string]string{
+				util.BulkLabel:            bulk.Name,
+				util.CalculationNameLabel: item.Name,
+				util.CalcRootFolder:       bulk.RootFolder,
 			}
-			return fmt.Errorf("couldn't create calculation: %w", err)
-
+			r.calculationCh <- *calc
 		}
-
 	}
-
 	return nil
 }
