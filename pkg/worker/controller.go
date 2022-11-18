@@ -109,7 +109,8 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	if err != nil && !kerrors.IsNotFound(err) {
 		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
-	if !kerrors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
+		r.logger.WithError(err).Info("couln't find calculation. Ignoring...")
 		return nil
 	}
 
