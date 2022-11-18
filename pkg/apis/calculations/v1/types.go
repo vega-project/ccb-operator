@@ -22,9 +22,10 @@ type Calculation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       CalculationSpec   `json:"spec,omitempty"`
+	Spec       CalculationSpec   `json:"spec"`
 	Pipeline   Pipeline          `json:"pipeline,omitempty"`
-	Assign     string            `json:"assign,omitempty"`
+	Assign     string            `json:"assign"`
+	WorkerPool string            `json:"worker_pool"`
 	InputFiles *InputFiles       `json:"input_files,omitempty"`
 	Status     CalculationStatus `json:"status,omitempty"`
 	Phase      CalculationPhase  `json:"phase,omitempty"`

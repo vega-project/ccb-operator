@@ -9,8 +9,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/client-go/util/retry"
+
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -20,7 +23,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
@@ -31,7 +33,7 @@ const (
 	controllerName = "calculations"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodename string, executeChan chan *calculationsv1.Calculation, workerPool, namespace string) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodename string, executeChan chan *v1.Calculation, workerPool, namespace string) error {
 	logger := logrus.WithField("controller", controllerName)
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
@@ -80,7 +82,7 @@ func calculationHandler() handler.EventHandler {
 type reconciler struct {
 	logger      *logrus.Entry
 	client      ctrlruntimeclient.Client
-	executeChan chan *calculationsv1.Calculation
+	executeChan chan *v1.Calculation
 
 	hostname   string
 	nodename   string
@@ -104,8 +106,11 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 	calculation := &v1.Calculation{}
 	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, calculation)
-	if err != nil {
-		return fmt.Errorf("failed to get pod: %s in namespace %s: %w", req.Name, req.Namespace, err)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return fmt.Errorf("failed to get calculation: %s in namespace %s: %w", req.Name, req.Namespace, err)
+	}
+	if !kerrors.IsNotFound(err) {
+		return nil
 	}
 
 	if calculation.Assign == r.hostname {
@@ -125,7 +130,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 					return fmt.Errorf("failed to get the calculation: %w", err)
 				}
 
-				calculation.Phase = calculationsv1.ProcessingPhase
+				calculation.Phase = v1.ProcessingPhase
 				calculation.Status.PendingTime = &metav1.Time{Time: time.Now()}
 
 				r.logger.WithField("calculation", calculation.Name).Info("Updating calculation phase...")
@@ -158,7 +163,7 @@ type Controller struct {
 func NewController(
 	ctx context.Context,
 	mgr manager.Manager,
-	executeChan chan *calculationsv1.Calculation,
+	executeChan chan *v1.Calculation,
 	calcErrorChan chan string,
 	stepUpdaterChan chan util.Result,
 	hostname, nodename, namespace, workerPool string) *Controller {
@@ -231,7 +236,7 @@ func (c *Controller) updateErrorCalculation(name string) error {
 			return fmt.Errorf("failed to get the calculation: %w", err)
 		}
 
-		calculation.Phase = calculationsv1.FailedPhase
+		calculation.Phase = v1.FailedPhase
 		calculation.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
 		if err := c.client.Update(c.ctx, calculation); err != nil {

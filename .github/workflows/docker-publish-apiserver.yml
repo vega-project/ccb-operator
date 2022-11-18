@@ -22,7 +22,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.1
+          go-version: 1.19
       - name: Run tests
         run: go build -o . ./cmd/apiserver && docker build -f images/apiserver/Dockerfile -t apiserver .
 
@@ -38,7 +38,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.1
+          go-version: 1.19
       - name: Build image
         run: go build -o . ./cmd/apiserver && docker build -f images/apiserver/Dockerfile -t apiserver .
 
