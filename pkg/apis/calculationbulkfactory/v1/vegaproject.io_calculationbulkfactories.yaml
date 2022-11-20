@@ -44,6 +44,8 @@ spec:
             type: object
           status:
             properties:
+              bulk_created:
+                type: boolean
               completionTime:
                 format: date-time
                 type: string
