@@ -22,12 +22,11 @@ spec:
         commands: /usr/bin/dispatcher
         args:
           - --namespace=vega
-          - --redis-url=redis:6379
-          - --redis-password-file=/etc/redis/database-password
+          - --dry-run=false
         volumeMounts:
-          - mountPath: /etc/redis
-            name: redis
+        - mountPath: /var/tmp/nfs
+          name: calculations
       volumes:
-        - name: redis
-          secret:
-            secretName: redis
+      - name: calculations
+        persistentVolumeClaim:
+          claimName: results-nfs-claim
