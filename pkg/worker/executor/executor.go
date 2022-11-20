@@ -180,7 +180,6 @@ func (e *Executor) Run() {
 
 					if status == v1.FailedPhase {
 						e.calcErrorChan <- calc.Name
-						break
 					}
 				}
 

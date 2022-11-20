@@ -30,6 +30,7 @@ type CalculationBulkFactoryList struct {
 }
 
 type CalculationBulkFactoryStatus struct {
-	CreatedTime    metav1.Time  `json:"startTime,omitempty"`
-	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+	CreatedTime    metav1.Time        `json:"startTime,omitempty"`
+	CompletionTime *metav1.Time       `json:"completionTime,omitempty"`
+	Conditions     []metav1.Condition `json:"conditions,omitempty"`
 }

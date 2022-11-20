@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
+	factoryv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulkfactory/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -135,7 +136,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 				calculation.Phase = phase
 				calculation.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
-				r.logger.WithField("calculation", calculation.Name).Info("Updating calculation phase...")
+				r.logger.WithField("calculation", calculation.Name).WithField("phase", phase).Info("Updating calculation phase...")
 				if err := r.client.Update(ctx, calculation); err != nil {
 					return fmt.Errorf("failed to update calculation %s: %w", calculation.Name, err)
 				}
@@ -146,18 +147,58 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		}
 	}
 
+	if calc.Labels != nil {
+		if factoryName, ok := calc.Labels[util.FactoryLabel]; ok && calc.Phase != v1.CreatedPhase {
+			if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				factory := &factoryv1.CalculationBulkFactory{}
+				if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: calc.Namespace, Name: factoryName}, factory); err != nil {
+					return fmt.Errorf("failed to get the calculation bulk factory: %w", err)
+				}
+
+				condition := metav1.ConditionFalse
+				reason := "Failed"
+				conditionType := "Unavailable"
+				if calc.Phase == v1.CompletedPhase {
+					condition = metav1.ConditionTrue
+					reason = "Completed"
+					conditionType = "Available"
+				}
+
+				now := metav1.Time{Time: time.Now()}
+				factory.Status.CompletionTime = &now
+				factory.Status.Conditions = append(factory.Status.Conditions, metav1.Condition{
+					Type:               conditionType,
+					Status:             condition,
+					Reason:             reason,
+					LastTransitionTime: now,
+				})
+
+				r.logger.WithField("bulk-factory", factory.Name).Info("Updating calculation bulk factory...")
+				if err := r.client.Update(ctx, factory); err != nil {
+					return fmt.Errorf("failed to update calculation bulk factory %s: %w", factory.Name, err)
+				}
+				return nil
+			}); err != nil {
+				return fmt.Errorf("failed to update the calculation bulk factory: %w", err)
+			}
+			return nil
+		}
+	}
+
 	var bulkName string
 	if value, exists := calc.Labels[util.BulkLabel]; exists {
 		bulkName = value
 	} else {
-		return fmt.Errorf("no `%s` label found in calculation: %s/%s", util.BulkLabel, req.Namespace, req.Name)
+		r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.BulkLabel, req.Namespace, req.Name)
+		return nil
 	}
 
 	var calcName string
 	if value, exists := calc.Labels[util.CalculationNameLabel]; exists {
 		calcName = value
 	} else {
-		return fmt.Errorf("no `%s` label found in calculation: %s/%s", util.CalculationNameLabel, req.Namespace, req.Name)
+		r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.CalculationNameLabel, req.Namespace, req.Name)
+		return nil
 	}
 
 	// Update the calculation Bulk that holds this calculation

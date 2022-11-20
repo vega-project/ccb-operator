@@ -6,4 +6,5 @@ const (
 	BulkLabel            = "vegaproject.io/bulk"
 	CalculationNameLabel = "vegaproject.io/calculationName"
 	CalcRootFolder       = "vegaproject.io/rootFolder"
+	FactoryLabel         = "vegaproject.io/factory"
 )
