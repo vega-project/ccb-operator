@@ -12,6 +12,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -104,7 +105,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return nil
 	}
 
-	if factory.Status.CompletionTime != nil {
+	if factory.Status.CompletionTime != nil && !factory.Status.BulkCreated {
 		bulkFile := filepath.Join(r.nfsPath, factory.BulkOutput)
 		b, err := os.ReadFile(bulkFile)
 		if err != nil {
@@ -120,6 +121,23 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		if err := r.client.Create(ctx, &bulk); err != nil {
 			return err
 		}
+
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			f := &v1.CalculationBulkFactory{}
+			err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, f)
+			if err != nil {
+				return fmt.Errorf("failed to get calculationbulkfactory %s in namespace %s: %w", req.Name, req.Namespace, err)
+			}
+
+			f.Status.BulkCreated = true
+			if err := r.client.Update(ctx, f); err != nil {
+				return fmt.Errorf("failed to update calculationbulkfactory %s: %w", f.Name, err)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+
 		return nil
 	}
 

@@ -33,4 +33,5 @@ type CalculationBulkFactoryStatus struct {
 	CreatedTime    metav1.Time        `json:"startTime,omitempty"`
 	CompletionTime *metav1.Time       `json:"completionTime,omitempty"`
 	Conditions     []metav1.Condition `json:"conditions,omitempty"`
+	BulkCreated    bool               `json:"bulk_created,omitempty"`
 }
