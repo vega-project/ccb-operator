@@ -3,6 +3,7 @@ module github.com/vega-project/ccb-operator
 go 1.19
 
 require (
+	github.com/ghodss/yaml v1.0.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/google/go-cmp v0.5.8
 	github.com/prometheus/client_golang v1.12.2
