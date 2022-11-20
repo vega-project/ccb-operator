@@ -15,6 +15,7 @@ import (
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
+	"github.com/vega-project/ccb-operator/pkg/dispatcher/factory"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/scheduler"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
 	"github.com/vega-project/ccb-operator/pkg/util"
@@ -23,6 +24,7 @@ import (
 type options struct {
 	namespace string
 	dryRun    bool
+	nfsPath   string
 }
 
 func gatherOptions() (options, error) {
@@ -31,6 +33,7 @@ func gatherOptions() (options, error) {
 
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists.")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Whether to mutate the objects.")
+	fs.StringVar(&o.nfsPath, "nfs-path", "/var/tmp/nfs", "Path of the mounted nfs storage.")
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return o, err
@@ -82,6 +85,10 @@ func main() {
 	}
 
 	if err := bulks.AddToManager(ctx, mgr, o.namespace, calculationCh); err != nil {
+		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
+	}
+
+	if err := factory.AddToManager(ctx, mgr, o.namespace, calculationCh, o.nfsPath); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
