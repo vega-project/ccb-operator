@@ -2,6 +2,8 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -12,10 +14,12 @@ type CalculationBulkFactory struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	WorkerPool string   `json:"worker_pool,omitempty"`
-	BulkOutput string   `json:"bulk_output,omitempty"`
-	Command    string   `json:"command,omitempty"`
-	Args       []string `json:"args,omitempty"`
+	RootFolder string         `json:"root_folder,omitempty"`
+	InputFiles *v1.InputFiles `json:"input_files,omitempty"`
+	WorkerPool string         `json:"worker_pool,omitempty"`
+	BulkOutput string         `json:"bulk_output,omitempty"`
+	Command    string         `json:"command,omitempty"`
+	Args       []string       `json:"args,omitempty"`
 
 	Status CalculationBulkFactoryStatus `json:"status,omitempty"`
 }

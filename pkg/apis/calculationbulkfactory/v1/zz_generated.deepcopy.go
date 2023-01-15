@@ -6,6 +6,7 @@
 package v1
 
 import (
+	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -15,6 +16,11 @@ func (in *CalculationBulkFactory) DeepCopyInto(out *CalculationBulkFactory) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	if in.InputFiles != nil {
+		in, out := &in.InputFiles, &out.InputFiles
+		*out = new(calculationsv1.InputFiles)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Args != nil {
 		in, out := &in.Args, &out.Args
 		*out = make([]string, len(*in))
