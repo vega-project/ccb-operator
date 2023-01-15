@@ -146,10 +146,12 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			Namespace: req.Namespace,
 			Name:      fmt.Sprintf("calc-factory-%s", req.Name),
 			Labels: map[string]string{
-				util.FactoryLabel: req.Name,
+				util.FactoryLabel:   req.Name,
+				util.CalcRootFolder: factory.RootFolder,
 			},
 		},
-		Phase: calcv1.CreatedPhase,
+		Phase:      calcv1.CreatedPhase,
+		InputFiles: factory.InputFiles,
 		Spec: calcv1.CalculationSpec{
 			Steps: []calcv1.Step{
 				{

@@ -35,6 +35,15 @@ spec:
             type: string
           command:
             type: string
+          input_files:
+            properties:
+              files:
+                items:
+                  type: string
+                type: array
+              symlink:
+                type: boolean
+            type: object
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
@@ -42,6 +51,8 @@ spec:
             type: string
           metadata:
             type: object
+          root_folder:
+            type: string
           status:
             properties:
               bulk_created:
