@@ -106,7 +106,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if factory.Status.CompletionTime != nil && !factory.Status.BulkCreated {
-		bulkFile := filepath.Join(r.nfsPath, factory.BulkOutput)
+		bulkFile := filepath.Join(r.nfsPath, factory.RootFolder, factory.BulkOutput)
 		b, err := os.ReadFile(bulkFile)
 		if err != nil {
 			return err
