@@ -185,31 +185,39 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		}
 	}
 
-	var bulkName string
-	if value, exists := calc.Labels[util.BulkLabel]; exists {
-		bulkName = value
-	} else {
-		r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.BulkLabel, req.Namespace, req.Name)
-		return nil
-	}
+	if _, exists := calc.Labels[util.FactoryLabel]; !exists {
+		var bulkName string
+		if value, exists := calc.Labels[util.BulkLabel]; exists {
+			bulkName = value
+		} else {
+			r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.BulkLabel, req.Namespace, req.Name)
+			return nil
+		}
 
-	var calcName string
-	if value, exists := calc.Labels[util.CalculationNameLabel]; exists {
-		calcName = value
-	} else {
-		r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.CalculationNameLabel, req.Namespace, req.Name)
-		return nil
-	}
+		var calcName string
+		if value, exists := calc.Labels[util.CalculationNameLabel]; exists {
+			calcName = value
+		} else {
+			r.logger.Infof("no `%s` label found in calculation: %s/%s. Ignoring...", util.CalculationNameLabel, req.Namespace, req.Name)
+			return nil
+		}
 
-	// Update the calculation Bulk that holds this calculation
+		if err := r.updateCalculationBulk(ctx, req.Namespace, bulkName, calcName, calc.Phase); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *reconciler) updateCalculationBulk(ctx context.Context, namespace, bulkName, calcName string, phase v1.CalculationPhase) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		bulk := &bulkv1.CalculationBulk{}
-		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: bulkName}, bulk); err != nil {
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: bulkName}, bulk); err != nil {
 			return fmt.Errorf("failed to get the calculation bulk: %w", err)
 		}
 
 		bulkCalc := bulk.Calculations[calcName]
-		bulkCalc.Phase = calc.Phase
+		bulkCalc.Phase = phase
 
 		bulk.Calculations[calcName] = bulkCalc
 
