@@ -92,20 +92,33 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
+	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil {
+		r.calculationCh <- *newCalculationForBulk(*bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
+			util.BulkLabel:            bulk.Name,
+			util.PostCalculationLabel: "",
+			util.CalcRootFolder:       bulk.RootFolder,
+		})
+		return nil
+	}
+
 	for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
 		if item.Calculation.Phase == "" {
-			calc := util.NewCalculation(&item.Calculation)
-			calc.InputFiles = item.Calculation.InputFiles
-			calc.Pipeline = item.Calculation.Pipeline
-			calc.Namespace = req.Namespace
-			calc.WorkerPool = bulk.WorkerPool
-			calc.Labels = map[string]string{
+			r.calculationCh <- *newCalculationForBulk(item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
 				util.BulkLabel:            bulk.Name,
 				util.CalculationNameLabel: item.Name,
 				util.CalcRootFolder:       bulk.RootFolder,
-			}
-			r.calculationCh <- *calc
+			})
 		}
 	}
 	return nil
+}
+
+func newCalculationForBulk(calcBulk bulkv1.Calculation, namespace, workerPool string, labels map[string]string) *v1.Calculation {
+	calc := util.NewCalculation(&calcBulk)
+	calc.InputFiles = calcBulk.InputFiles
+	calc.Pipeline = calcBulk.Pipeline
+	calc.Namespace = namespace
+	calc.WorkerPool = workerPool
+	calc.Labels = labels
+	return calc
 }

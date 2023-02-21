@@ -99,6 +99,42 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "basic case for the post calculation",
+			bulks: []ctrlruntimeclient.Object{
+				&bulkv1.CalculationBulk{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					PostCalculation: &bulkv1.Calculation{
+						Steps: []calcv1.Step{{
+							Command: "python",
+							Args:    []string{"post-calc.py"},
+						}},
+					},
+				},
+			},
+			calculations: []ctrlruntimeclient.Object{
+				&calcv1.Calculation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-calc",
+						Namespace: "vega",
+						Labels:    map[string]string{"vegaproject.io/bulk": "test-bulk", "vegaproject.io/postCalculation": ""},
+					},
+					Phase: calcv1.CreatedPhase,
+				},
+			},
+			expectedBulks: []bulkv1.CalculationBulk{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-bulk", Namespace: "vega"},
+					PostCalculation: &bulkv1.Calculation{
+						Steps: []calcv1.Step{{
+							Command: "python",
+							Args:    []string{"post-calc.py"},
+						}},
+						Phase: calcv1.CreatedPhase,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
