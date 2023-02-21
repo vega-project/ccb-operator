@@ -14,11 +14,12 @@ type CalculationBulk struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	RootFolder   string                 `json:"root_folder,omitempty"`
-	WorkerPool   string                 `json:"worker_pool"`
-	InputFiles   *v1.InputFiles         `json:"input_files,omitempty"`
-	Calculations map[string]Calculation `json:"calculations"`
-	Status       CalculationBulkStatus  `json:"status,omitempty"`
+	RootFolder      string                 `json:"root_folder,omitempty"`
+	WorkerPool      string                 `json:"worker_pool"`
+	InputFiles      *v1.InputFiles         `json:"input_files,omitempty"`
+	Calculations    map[string]Calculation `json:"calculations"`
+	PostCalculation *Calculation           `json:"postCalculation"`
+	Status          CalculationBulkStatus  `json:"status,omitempty"`
 }
 
 type Calculation struct {

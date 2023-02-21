@@ -194,6 +194,14 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 			return nil
 		}
 
+		// If its a post calculation then update the corresponding bulk and return.
+		if _, exist := calc.Labels[util.PostCalculationLabel]; exist {
+			if err := r.updatePostCalculationBulk(ctx, req.Namespace, bulkName, calc.Phase); err != nil {
+				return err
+			}
+			return nil
+		}
+
 		var calcName string
 		if value, exists := calc.Labels[util.CalculationNameLabel]; exists {
 			calcName = value
@@ -222,6 +230,26 @@ func (r *reconciler) updateCalculationBulk(ctx context.Context, namespace, bulkN
 		bulk.Calculations[calcName] = bulkCalc
 
 		r.logger.WithField("bulk", bulkName).Info("Updating calculation bulk...")
+		if err := r.client.Update(ctx, bulk); err != nil {
+			return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *reconciler) updatePostCalculationBulk(ctx context.Context, namespace, bulkName string, phase v1.CalculationPhase) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		bulk := &bulkv1.CalculationBulk{}
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: bulkName}, bulk); err != nil {
+			return fmt.Errorf("failed to get the calculation bulk: %w", err)
+		}
+
+		bulk.PostCalculation.Phase = phase
+
+		r.logger.WithField("bulk", bulkName).Info("Updating post calculation in bulk...")
 		if err := r.client.Update(ctx, bulk); err != nil {
 			return fmt.Errorf("failed to update calculation bulk %s: %w", bulk.Name, err)
 		}

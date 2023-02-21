@@ -55,6 +55,11 @@ func (in *CalculationBulk) DeepCopyInto(out *CalculationBulk) {
 			(*out)[key] = *val.DeepCopy()
 		}
 	}
+	if in.PostCalculation != nil {
+		in, out := &in.PostCalculation, &out.PostCalculation
+		*out = new(Calculation)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Status.DeepCopyInto(&out.Status)
 }
 

@@ -104,3 +104,12 @@ func GetSortedCreatedCalculations(calcs map[string]bulkv1.Calculation) sortedCal
 	}
 	return sorted
 }
+
+func IsAllFinishedCalculations(calcs map[string]bulkv1.Calculation) bool {
+	for _, calc := range calcs {
+		if calc.Phase == "" {
+			return false
+		}
+	}
+	return true
+}

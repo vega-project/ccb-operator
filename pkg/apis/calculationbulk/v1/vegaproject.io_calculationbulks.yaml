@@ -84,6 +84,45 @@ spec:
             type: string
           metadata:
             type: object
+          postCalculation:
+            properties:
+              input_files:
+                properties:
+                  files:
+                    items:
+                      type: string
+                    type: array
+                  symlink:
+                    type: boolean
+                type: object
+              params:
+                properties:
+                  log_g:
+                    type: number
+                  teff:
+                    type: number
+                type: object
+              phase:
+                type: string
+              pipeline:
+                type: string
+              steps:
+                items:
+                  properties:
+                    args:
+                      items:
+                        type: string
+                      type: array
+                    command:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - args
+                  - command
+                  type: object
+                type: array
+            type: object
           root_folder:
             type: string
           status:
@@ -101,6 +140,7 @@ spec:
             type: string
         required:
         - calculations
+        - postCalculation
         - worker_pool
         type: object
     served: true
