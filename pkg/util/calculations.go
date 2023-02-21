@@ -107,7 +107,7 @@ func GetSortedCreatedCalculations(calcs map[string]bulkv1.Calculation) sortedCal
 
 func IsAllFinishedCalculations(calcs map[string]bulkv1.Calculation) bool {
 	for _, calc := range calcs {
-		if calc.Phase == "" {
+		if calc.Phase == "" || calc.Phase == v1.ProcessingPhase {
 			return false
 		}
 	}

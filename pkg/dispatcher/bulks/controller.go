@@ -92,7 +92,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil {
+	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
 		r.calculationCh <- *newCalculationForBulk(*bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
 			util.BulkLabel:            bulk.Name,
 			util.PostCalculationLabel: "",
