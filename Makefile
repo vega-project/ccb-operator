@@ -32,10 +32,6 @@ apiserver:
 	oc process -f ./cluster/apiserver | oc apply -f -
 .PHONY: apiserver
 
-redis:
-	oc process -f ./cluster/redis | oc apply -f -
-.PHONY: redis
-
 storage:
 ifdef NFS_SERVER_IP
 	oc process -f ./cluster/storage/nfs-storage-template.yaml NFS_SEVER_IP=${NFS_SERVER_IP} | oc apply -f -
@@ -45,3 +41,11 @@ endif
 .PHONY: storage
 
 deploy: storage dispatcher worker result-collector janitor apiserver redis
+
+unit:
+	go test -v ./...
+.PHONY: unit
+
+lint:
+	golangci-lint run
+.PHONY: lint
