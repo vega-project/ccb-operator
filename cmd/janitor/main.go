@@ -30,7 +30,9 @@ func gatherOptions() options {
 
 	fs.StringVar(&o.retentionString, "retention", "24h", "How long calculations will be allow to exist in the cluster")
 
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logrus.WithError(err).Fatal("couldn't parse arguments")
+	}
 	return o
 }
 
@@ -52,7 +54,7 @@ type controller struct {
 	logger    *logrus.Entry
 }
 
-func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) error {
+func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	c.logger.Info("Starting controller")
@@ -69,7 +71,7 @@ func (c *controller) Start(stopChan <-chan struct{}, wg *sync.WaitGroup) error {
 		select {
 		case <-stopChan:
 			c.logger.Info("Stopping controller")
-			return nil
+			return
 		case <-runChan:
 			start := time.Now()
 			if err := c.clean(); err != nil {

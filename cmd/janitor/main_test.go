@@ -151,7 +151,9 @@ func TestClean(t *testing.T) {
 				client:    fakeClient,
 			}
 
-			c.clean()
+			if err := c.clean(); err != nil {
+				t.Fatal(err)
+			}
 
 			var calculationList v1.CalculationList
 			if err := fakeClient.List(context.Background(), &calculationList); err != nil {

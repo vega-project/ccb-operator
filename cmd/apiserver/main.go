@@ -37,7 +37,9 @@ func gatherOptions() options {
 	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
 	o.simulator.bind(fs)
 
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		logrus.WithError(err).Fatal("couldn't parse arguments")
+	}
 	return o
 }
 
