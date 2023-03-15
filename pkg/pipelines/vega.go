@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -146,7 +145,7 @@ func (v *VegaPipeline) GenerateKuruzInputFile(logger *logrus.Entry) error {
 
 	templateFile := filepath.Join(v.CalcPath, v.KuruzModelTemplateFile)
 
-	data, err := ioutil.ReadFile(templateFile)
+	data, err := os.ReadFile(templateFile)
 	if err != nil {
 		return fmt.Errorf("could not read file %q: %v", templateFile, err)
 	}
@@ -162,7 +161,7 @@ func (v *VegaPipeline) GenerateKuruzInputFile(logger *logrus.Entry) error {
 
 	outFile := filepath.Join(v.CalcPath, kuruzInputFilename)
 	logger.WithField("filename", outFile).Info("Generating input file...")
-	if err := ioutil.WriteFile(outFile, contents, 0777); err != nil {
+	if err := os.WriteFile(outFile, contents, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %v", err)
 	}
 
@@ -207,7 +206,7 @@ func (v *VegaPipeline) ReconstructSynspecInputFile(logger *logrus.Entry) error {
 		return fmt.Errorf("error while walking to path")
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(v.CalcPath, "fort.8"), []byte(contents), 0777); err != nil {
+	if err := os.WriteFile(filepath.Join(v.CalcPath, "fort.8"), []byte(contents), 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %w", err)
 	}
 
@@ -222,7 +221,7 @@ func (v *VegaPipeline) GenerateSynspecInputRuntimeFile(logger *logrus.Entry) err
 	fort95File := filepath.Join(v.CalcPath, fort95Filename)
 
 	synspecInputFile := filepath.Join(v.CalcPath, synspecInputFilename)
-	data, err := ioutil.ReadFile(template)
+	data, err := os.ReadFile(template)
 	if err != nil {
 		return err
 	}
@@ -236,11 +235,11 @@ func (v *VegaPipeline) GenerateSynspecInputRuntimeFile(logger *logrus.Entry) err
 		return err
 	}
 
-	if err := ioutil.WriteFile(synspecInputFile, contents, 0777); err != nil {
+	if err := os.WriteFile(synspecInputFile, contents, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %v", err)
 	}
 
-	if err := ioutil.WriteFile(fort95File, contents, 0777); err != nil {
+	if err := os.WriteFile(fort95File, contents, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %v", err)
 	}
 
@@ -286,7 +285,7 @@ func parseTemplate(data []byte, vars interface{}) ([]byte, error) {
 func dumpCommandOutput(logger *logrus.Entry, calcPath string, step int, data []byte) error {
 	outFile := filepath.Join(calcPath, fmt.Sprintf("step-%d", step))
 	logger.WithField("filename", outFile).WithField("path", calcPath).Info("Dumping command output to a file")
-	if err := ioutil.WriteFile(outFile, data, 0777); err != nil {
+	if err := os.WriteFile(outFile, data, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the command output file: %v", err)
 	}
 	return nil

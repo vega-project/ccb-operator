@@ -55,7 +55,9 @@ func main() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":3001", nil)
+		if err := http.ListenAndServe(":3001", nil); err != nil {
+			logger.WithError(err).Error("couldn't start the metrics http server")
+		}
 	}()
 
 	calculationCh := make(chan v1.Calculation)

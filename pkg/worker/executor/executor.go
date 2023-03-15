@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -100,7 +99,7 @@ func (e *Executor) Run() {
 						continue
 					}
 
-					input, err := ioutil.ReadFile(filepath.Join(rootFolder, inputFile))
+					input, err := os.ReadFile(filepath.Join(rootFolder, inputFile))
 					if err != nil {
 						e.logger.WithError(err).Error("couln't read input file. Aborting...")
 						e.calcErrorChan <- calc.Name
@@ -109,7 +108,7 @@ func (e *Executor) Run() {
 
 					_, inputFilename := filepath.Split(inputFile)
 					destinationFile := filepath.Join(calcPath, inputFilename)
-					err = ioutil.WriteFile(destinationFile, input, 0644)
+					err = os.WriteFile(destinationFile, input, 0644)
 					if err != nil {
 						e.logger.WithError(err).Errorf("couln't write input file %s. Aborting...", destinationFile)
 						e.calcErrorChan <- calc.Name
@@ -197,7 +196,7 @@ func (e *Executor) Run() {
 func (e *Executor) dumpCommandOutput(calcPath string, step int, data []byte) error {
 	outFile := filepath.Join(calcPath, fmt.Sprintf("step-%d", step))
 	e.logger.WithField("filename", outFile).WithField("path", calcPath).Info("Dumping command output to a file")
-	if err := ioutil.WriteFile(outFile, data, 0777); err != nil {
+	if err := os.WriteFile(outFile, data, 0777); err != nil {
 		return fmt.Errorf("couldn't generate the command output file: %v", err)
 	}
 	return nil
@@ -223,34 +222,6 @@ func (e *Executor) createSymbolicLinks(paths []string, toPath string) error {
 		}
 	}
 	return nil
-}
-
-type execution struct {
-	calculationName string
-	steps           []step
-}
-
-type step struct {
-	command string
-	args    []string
-	status  v1.CalculationPhase
-}
-
-func createExecution(calcName string, steps []v1.Step) *execution {
-	execution := &execution{
-		calculationName: calcName,
-	}
-
-	for _, calcStep := range steps {
-		s := step{
-			command: calcStep.Command,
-			args:    calcStep.Args,
-			status:  calcStep.Status,
-		}
-		execution.steps = append(execution.steps, s)
-	}
-
-	return execution
 }
 
 func setUnlimitStack() error {

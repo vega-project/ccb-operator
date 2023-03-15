@@ -12,7 +12,7 @@ import (
 )
 
 // NewCalculation gets the values of teff and logG and creates a calculation
-// with its minumum values
+// with its minimum values
 func NewCalculation(calc *bulkv1.Calculation) *v1.Calculation {
 	if calc.Pipeline == v1.VegaPipeline {
 		calc.Steps = []v1.Step{

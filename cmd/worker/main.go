@@ -16,15 +16,11 @@ import (
 )
 
 type options struct {
-	nfsPath                  string
-	atlasControlFiles        string
-	atlasDataFiles           string
-	kuruzModelTemplateFile   string
-	synspecInputTemplateFile string
-	namespace                string
-	workerPool               string
-	nodename                 string
-	dryRun                   bool
+	nfsPath    string
+	namespace  string
+	workerPool string
+	nodename   string
+	dryRun     bool
 }
 
 func gatherOptions() options {

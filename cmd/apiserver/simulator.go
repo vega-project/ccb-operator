@@ -154,8 +154,6 @@ func (s *simulator) simulateRun(calc v1.Calculation, done chan bool, ticker *tim
 			case v1.CreatedPhase:
 				newCalc.Phase = v1.ProcessingPhase
 				newCalc.Spec.Steps[0].Status = v1.ProcessingPhase
-				break
-
 			case v1.ProcessingPhase:
 				if isFinished(newCalc.Spec) {
 					newCalc.Phase = v1.CompletedPhase

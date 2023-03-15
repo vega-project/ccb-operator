@@ -1,0 +1,20 @@
+run:
+  deadline: 10m
+
+linters:
+  enable:
+    - unused
+    - gosimple
+    - gofmt
+    - govet
+    - staticcheck
+    - unconvert
+    - errcheck
+    - ineffassign
+    - misspell
+  disable-all: true
+
+linters-settings:
+  gosimple:
+    checks:
+      - '-S1000'
