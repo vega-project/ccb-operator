@@ -47,5 +47,5 @@ unit:
 .PHONY: unit
 
 lint:
-	golangci-lint run
+	./hack/lint.sh
 .PHONY: lint
