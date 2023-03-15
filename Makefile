@@ -1,13 +1,3 @@
-build:
-	go build -o . ./cmd/...
-	docker build -f images/dispatcher/Dockerfile -t dispatcher .
-	docker build -f images/worker/Dockerfile -t worker .
-	docker build -f images/janitor/Dockerfile -t janitor .
-	docker build -f images/result-collector/Dockerfile -t result-collector .
-	docker build -f images/apiserver/Dockerfile -t apiserver .
-.PHONY: all build
-
-
 namespace:
 	oc create --dry-run -f ./cluster/vega-namespace --dry-run -o yaml | oc apply -f -
 .PHONY: namespace
@@ -42,8 +32,12 @@ endif
 
 deploy: storage dispatcher worker result-collector janitor apiserver redis
 
+build:
+	go install -mod=mod ./cmd/...
+.PHONY: build
+
 unit:
-	go test -v ./...
+	go test -v -mod=mod ./...
 .PHONY: unit
 
 lint:
