@@ -22,13 +22,14 @@ type Calculation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec       CalculationSpec   `json:"spec"`
-	Pipeline   Pipeline          `json:"pipeline,omitempty"`
-	Assign     string            `json:"assign"`
-	WorkerPool string            `json:"worker_pool"`
-	InputFiles *InputFiles       `json:"input_files,omitempty"`
-	Status     CalculationStatus `json:"status,omitempty"`
-	Phase      CalculationPhase  `json:"phase,omitempty"`
+	Spec             CalculationSpec   `json:"spec"`
+	Pipeline         Pipeline          `json:"pipeline,omitempty"`
+	Assign           string            `json:"assign"`
+	WorkerPool       string            `json:"worker_pool"`
+	InputFiles       *InputFiles       `json:"input_files,omitempty"`
+	OutputFilesRegex string            `json:"output_files_regex,omitempty"`
+	Status           CalculationStatus `json:"status,omitempty"`
+	Phase            CalculationPhase  `json:"phase,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

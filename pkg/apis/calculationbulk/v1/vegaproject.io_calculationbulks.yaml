@@ -84,6 +84,8 @@ spec:
             type: string
           metadata:
             type: object
+          output_files_regex:
+            type: string
           postCalculation:
             properties:
               input_files:
@@ -138,10 +140,6 @@ spec:
             type: object
           worker_pool:
             type: string
-        required:
-        - calculations
-        - postCalculation
-        - worker_pool
         type: object
     served: true
     storage: true

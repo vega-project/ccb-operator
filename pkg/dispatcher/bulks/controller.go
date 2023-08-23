@@ -93,7 +93,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
-		r.calculationCh <- *newCalculationForBulk(*bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
+		r.calculationCh <- *newCalculationForBulk(*bulk, *bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
 			util.BulkLabel:            bulk.Name,
 			util.PostCalculationLabel: "",
 			util.CalcRootFolder:       bulk.RootFolder,
@@ -103,7 +103,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 	for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
 		if item.Calculation.Phase == "" {
-			r.calculationCh <- *newCalculationForBulk(item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
+			r.calculationCh <- *newCalculationForBulk(*bulk, item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
 				util.BulkLabel:            bulk.Name,
 				util.CalculationNameLabel: item.Name,
 				util.CalcRootFolder:       bulk.RootFolder,
@@ -113,10 +113,21 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	return nil
 }
 
-func newCalculationForBulk(calcBulk bulkv1.Calculation, namespace, workerPool string, labels map[string]string) *v1.Calculation {
-	calc := util.NewCalculation(&calcBulk)
-	calc.InputFiles = calcBulk.InputFiles
-	calc.Pipeline = calcBulk.Pipeline
+func newCalculationForBulk(bulk bulkv1.CalculationBulk, calcBulkCalculation bulkv1.Calculation, namespace, workerPool string, labels map[string]string) *v1.Calculation {
+	calc := util.NewCalculation(&calcBulkCalculation)
+
+	if calc.InputFiles == nil {
+		calc.InputFiles = calcBulkCalculation.InputFiles
+	}
+
+	if calc.OutputFilesRegex == "" {
+		calc.OutputFilesRegex = bulk.OutputFilesRegex
+	}
+
+	if calc.Pipeline == "" {
+		calc.Pipeline = calcBulkCalculation.Pipeline
+	}
+
 	calc.Namespace = namespace
 	calc.WorkerPool = workerPool
 	calc.Labels = labels
