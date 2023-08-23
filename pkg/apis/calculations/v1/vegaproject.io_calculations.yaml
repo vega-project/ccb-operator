@@ -45,6 +45,8 @@ spec:
             type: string
           metadata:
             type: object
+          output_files_regex:
+            type: string
           phase:
             type: string
           pipeline:

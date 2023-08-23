@@ -3,9 +3,11 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -19,7 +21,6 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
-// Executor ...
 type Executor struct {
 	logger          *logrus.Entry
 	executeChan     chan *v1.Calculation
@@ -34,9 +35,6 @@ type Executor struct {
 	workerPool      string
 }
 
-// Result ...
-
-// NewExecutor ...
 func NewExecutor(
 	ctx context.Context,
 	client ctrlruntimeclient.Client,
@@ -60,8 +58,6 @@ func NewExecutor(
 	}
 }
 
-// TODO: input filenames --> flags or const
-// Run ...
 func (e *Executor) Run() {
 	for {
 		select {
@@ -76,10 +72,15 @@ func (e *Executor) Run() {
 				break
 			}
 
-			// Creating folder
 			rootFolder := filepath.Join(e.nfsPath, calc.Labels[util.CalcRootFolder])
-			calcBulkName := calc.Labels[util.CalculationNameLabel]
-			calcPath := filepath.Join(rootFolder, calcBulkName)
+			calcPath, err := os.MkdirTemp("", calc.Labels[util.CalculationNameLabel])
+			if err != nil {
+				e.logger.WithError(err).Error("error creating temp directory")
+				e.calcErrorChan <- calc.Name
+				break
+			}
+			defer os.RemoveAll(calcPath)
+
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, 0777); err != nil {
 					e.logger.WithError(err).Error("couln't create directory. Aborting...")
@@ -184,6 +185,11 @@ func (e *Executor) Run() {
 
 			}
 
+			if err := copyMatchingFiles(calcPath, filepath.Join(rootFolder, calc.Labels[util.CalculationNameLabel]), calc.OutputFilesRegex); err != nil {
+				e.logger.WithError(err).Error("couldn't copy the output files")
+				e.calcErrorChan <- calc.Name
+			}
+
 			// All steps finished. Update worker in workerpool
 			if err := util.UpdateWorkerStatusInPool(e.ctx, e.client, e.workerPool, e.nodename, e.namespace, workersv1.WorkerAvailableState); err != nil {
 				// TODO: retry until the state is updated, otherwise the worker will deadlock
@@ -233,4 +239,51 @@ func setUnlimitStack() error {
 		return fmt.Errorf("error Setting Rlimit %v", err)
 	}
 	return nil
+}
+
+func copyFile(src, dest string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyMatchingFiles(srcDir, destDir, pattern string) error {
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return err
+	}
+
+	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && regex.MatchString(info.Name()) {
+			destPath := filepath.Join(destDir, info.Name())
+			if err := copyFile(path, destPath); err != nil {
+				return err
+			}
+			logrus.Infof("Copied %s to %s", path, destPath)
+		}
+
+		return nil
+	})
 }
