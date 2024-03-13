@@ -35,6 +35,7 @@ func gatherOptions() options {
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
 	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
 	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
+	fs.StringVar(&o.resultsDir, "results-dir", "/var/tmp/nfs", "The path where the calculations results exist.")
 	o.simulator.bind(fs)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -86,9 +87,11 @@ func main() {
 
 	r.GET("/calculation", s.getCalculation)
 	r.GET("/calculation/:id", s.getCalculationByName)
+	r.GET("/calculations/results/:calcID", s.downloadResults)
 
 	r.GET("/bulks", s.getCalculationBulks)
 	r.GET("/bulk/:id", s.getCalculationBulkByName)
+
 	r.POST("/bulk/create", s.createCalculationBulk)
 	r.DELETE("/bulks/delete/:id", s.deleteCalculationBulk)
 

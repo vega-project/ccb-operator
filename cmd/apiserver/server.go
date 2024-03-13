@@ -1,11 +1,16 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -243,6 +248,68 @@ func (s *server) getWorkerPoolByName(c *gin.Context) {
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, response("500", http.StatusInternalServerError))
 	}
+}
+
+func (s *server) downloadResults(c *gin.Context) {
+	calcID := c.Param("calcID")
+
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		calc := &v1.Calculation{}
+		if err := s.client.Get(s.ctx, ctrlruntimeclient.ObjectKey{Namespace: s.namespace, Name: calcID}, calc); err != nil {
+			return err
+		}
+
+		if calc.Phase != v1.CompletedPhase {
+			return fmt.Errorf("calculation %s is not in succeeded state", calcID)
+		}
+
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		tw := tar.NewWriter(gw)
+
+		fileNames := []string{"fort.7", "fort.8"}
+		storagePath := filepath.Join(s.resultsPath, calc.Labels[util.CalcRootFolder], calc.Labels[util.CalculationNameLabel])
+
+		for _, fileName := range fileNames {
+			file, err := os.Open(filepath.Join(storagePath, fileName))
+			if err != nil {
+				return fmt.Errorf("failed to open file: %s", fileName)
+			}
+			defer file.Close()
+
+			fileInfo, err := file.Stat()
+			if err != nil {
+				return fmt.Errorf("failed to get file info: %w", err)
+			}
+
+			hdr := &tar.Header{
+				Name: fileName,
+				Mode: int64(fileInfo.Mode()),
+				Size: fileInfo.Size(),
+			}
+			if err := tw.WriteHeader(hdr); err != nil {
+				return fmt.Errorf("failed to write tar header: %w", err)
+			}
+			if _, err := io.Copy(tw, file); err != nil {
+				return fmt.Errorf("failed to write tar body: %w", err)
+			}
+		}
+
+		if err := tw.Close(); err != nil {
+			return fmt.Errorf("failed to close tar writer: %w", err)
+		}
+		if err := gw.Close(); err != nil {
+			return fmt.Errorf("failed to close gzip writer: %w", err)
+		}
+
+		c.Header("Content-Type", "application/x-tar")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.tar.gz", calcID))
+		c.Data(http.StatusOK, "application/x-tar", buf.Bytes())
+		return nil
+	}); err != nil {
+		responseError(c, fmt.Sprintf("failed to download results for calculation %s", calcID), err)
+	}
+
 }
 
 func response(message string, statusCode int) gin.H {
