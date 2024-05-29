@@ -110,3 +110,32 @@ func loadKuruzInputFiles() ([]byte, []byte, error) {
 
 	return lessThan10k, moreThan10k, nil
 }
+
+func Test_constructKuruzInputFileLine(t *testing.T) {
+	tests := []struct {
+		name string
+		teff int
+		logg float64
+		want string
+	}{
+		{
+			name: "Less than 10k Teff",
+			teff: 9000,
+			logg: 4,
+			want: "TEFF   9000.  GRAVITY 4.00000 LTE ",
+		},
+		{
+			name: "More than 10k Teff",
+			teff: 10000,
+			logg: 4,
+			want: "TEFF  10000.  GRAVITY 4.00000 LTE ",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if diff := cmp.Diff(constructKuruzInputFileLine(tt.teff, tt.logg), tt.want); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}

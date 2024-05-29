@@ -150,22 +150,23 @@ func (v *VegaPipeline) GenerateKuruzInputFile(logger *logrus.Entry) error {
 		return fmt.Errorf("could not read file %q: %v", templateFile, err)
 	}
 
-	vars := make(map[string]interface{})
-	vars[teffVar] = fmt.Sprintf("%.1f", v.Params.Teff)
-	vars[logGVar] = fmt.Sprintf("%.2f", v.Params.LogG)
-
-	contents, err := parseTemplate(data, vars)
-	if err != nil {
-		return err
+	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 {
+		lines[0] = constructKuruzInputFileLine(int(v.Params.Teff), v.Params.LogG)
 	}
 
+	contents := strings.Join(lines, "\n")
 	outFile := filepath.Join(v.CalcPath, kuruzInputFilename)
 	logger.WithField("filename", outFile).Info("Generating input file...")
-	if err := os.WriteFile(outFile, contents, 0777); err != nil {
+	if err := os.WriteFile(outFile, []byte(contents), 0777); err != nil {
 		return fmt.Errorf("couldn't generate the new input file: %v", err)
 	}
 
 	return nil
+}
+
+func constructKuruzInputFileLine(teff int, logg float64) string {
+	return fmt.Sprintf("TEFF %6d.  GRAVITY %.5f LTE ", teff, logg)
 }
 
 // ReconstructSynspecInputFile reconstructs the synspec input file
