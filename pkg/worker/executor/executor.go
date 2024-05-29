@@ -79,7 +79,6 @@ func (e *Executor) Run() {
 				e.calcErrorChan <- calc.Name
 				break
 			}
-			defer os.RemoveAll(calcPath)
 
 			if _, err := os.Stat(calcPath); err != nil {
 				if err := os.MkdirAll(calcPath, 0777); err != nil {
@@ -187,6 +186,11 @@ func (e *Executor) Run() {
 
 			if err := copyMatchingFiles(calcPath, filepath.Join(rootFolder, calc.Labels[util.CalculationNameLabel]), calc.OutputFilesRegex); err != nil {
 				e.logger.WithError(err).Error("couldn't copy the output files")
+				e.calcErrorChan <- calc.Name
+			}
+
+			if err := os.RemoveAll(calcPath); err != nil {
+				e.logger.WithField("path", calcPath).WithError(err).Error("couldn't remove the temp directory")
 				e.calcErrorChan <- calc.Name
 			}
 
