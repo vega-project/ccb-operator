@@ -43,3 +43,8 @@ unit:
 lint:
 	./hack/lint.sh
 .PHONY: lint
+
+.PHONY: protogen
+protogen:
+	@go run github.com/bufbuild/buf/cmd/buf@v0.43.2 build
+	@go run github.com/bufbuild/buf/cmd/buf@v0.43.2 generate

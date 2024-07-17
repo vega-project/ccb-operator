@@ -1,6 +1,6 @@
 module github.com/vega-project/ccb-operator
 
-go 1.19
+go 1.22
 
 require (
 	github.com/ghodss/yaml v1.0.0
@@ -11,7 +11,13 @@ require (
 	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe
 	github.com/swaggo/gin-swagger v1.5.1
 	github.com/swaggo/swag v1.8.3
-	golang.org/x/sys v0.15.0
+	github.com/vugu/vjson v0.0.0-20200505061711-f9cbed27d3d9
+	github.com/vugu/vugu v0.4.0
+	golang.org/x/sys v0.19.0
+	google.golang.org/grpc v1.47.0
+	google.golang.org/protobuf v1.30.0
+	gorm.io/driver/postgres v1.5.9
+	gorm.io/gorm v1.25.11
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
@@ -51,6 +57,12 @@ require (
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgx/v5 v5.5.5 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
@@ -71,18 +83,20 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
+	github.com/vugu/xxhash v0.0.0-20191111030615-ed24d0179019 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
