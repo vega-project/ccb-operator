@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package db;
+
+option go_package = "pkg/db";
+
+
+service DbService {
+  rpc StoreData (StoreRequest) returns (StoreReply) {}
+}
+
+message StoreRequest {
+  map<string, string> parameters = 1;
+  string results = 2;
+}
+
+message StoreReply {
+  string message = 1;
+}
