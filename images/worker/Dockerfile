@@ -1,6 +1,7 @@
-FROM centos:7
+FROM fedora:31
 
-RUN yum install -y gcc-gnat-4.8.5 libgnat-4.8.5 libgnat-devel-4.8.5
+RUN yum install -y gcc-gnat libgnat libgnat-devel && \
+    yum clean all
 
 ADD worker /usr/bin/worker
 ADD bin/atlas12_ada /usr/bin/atlas12_ada
