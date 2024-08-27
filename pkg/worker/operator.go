@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	calculationsv1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/util"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
 )
@@ -27,19 +28,21 @@ type Operator struct {
 	workerPool             string
 	nfsPath                string
 	dryRun                 bool
+	grpcAddress            string
 }
 
-func NewMainOperator(ctx context.Context, hostname, nodename, namespace, workerPool, nfsPath string, cfg *rest.Config, dryRun bool) *Operator {
+func NewMainOperator(ctx context.Context, hostname, nodename, namespace, workerPool, nfsPath string, cfg *rest.Config, dryRun bool, grpcAddress string) *Operator {
 	return &Operator{
-		ctx:        ctx,
-		logger:     logrus.WithField("name", "operator"),
-		cfg:        cfg,
-		dryRun:     dryRun,
-		hostname:   hostname,
-		nodename:   nodename,
-		namespace:  namespace,
-		workerPool: workerPool,
-		nfsPath:    nfsPath,
+		ctx:         ctx,
+		logger:      logrus.WithField("name", "operator"),
+		cfg:         cfg,
+		dryRun:      dryRun,
+		hostname:    hostname,
+		nodename:    nodename,
+		namespace:   namespace,
+		workerPool:  workerPool,
+		nfsPath:     nfsPath,
+		grpcAddress: grpcAddress,
 	}
 }
 
@@ -53,7 +56,12 @@ func (op *Operator) Initialize() error {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
-	op.executor = executor.NewExecutor(op.ctx, mgr.GetClient(), executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath, op.nodename, op.namespace, op.workerPool)
+	grpcClient, err := grpc.NewClient(op.grpcAddress)
+	if err != nil {
+		return fmt.Errorf("failed to construct grpc client: %w", err)
+	}
+
+	op.executor = executor.NewExecutor(op.ctx, mgr.GetClient(), executeChan, calcErrorChan, stepUpdaterChan, op.nfsPath, op.nodename, op.namespace, op.workerPool, grpcClient)
 	op.calculationsController = NewController(op.ctx, mgr, executeChan, calcErrorChan, stepUpdaterChan, op.hostname, op.nodename, op.namespace, op.workerPool)
 	return nil
 }
