@@ -5,19 +5,19 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vega-project/ccb-operator/pkg/db"
-	pb "github.com/vega-project/ccb-operator/pkg/db/proto"
+	proto "github.com/vega-project/ccb-operator/proto"
 )
 
 type Server struct {
 	resultstore db.CalculationResultsStore
-	pb.UnimplementedDbServiceServer
+	proto.UnimplementedDbServiceServer
 }
 
 func NewServer(resultstore db.CalculationResultsStore) *Server {
 	return &Server{resultstore: resultstore}
 }
 
-func (s *Server) StoreData(ctx context.Context, in *pb.StoreRequest) (*pb.StoreReply, error) {
+func (s *Server) StoreData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreReply, error) {
 	l := logrus.WithField("parametres", in.Parameters)
 	reply, err := s.resultstore.StoreOrUpdateData(ctx, in)
 	if err != nil {

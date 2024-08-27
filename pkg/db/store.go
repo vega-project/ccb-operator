@@ -6,20 +6,20 @@ import (
 	"errors"
 	"sort"
 
-	pb "github.com/vega-project/ccb-operator/pkg/db/proto"
+	proto "github.com/vega-project/ccb-operator/proto"
 
 	"gorm.io/gorm"
 )
 
 type CalculationResultsStore interface {
-	StoreOrUpdateData(ctx context.Context, in *pb.StoreRequest) (*pb.StoreReply, error)
+	StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreReply, error)
 }
 
 type calculationResultsStore struct {
 	db *gorm.DB
 }
 
-func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *pb.StoreRequest) (*pb.StoreReply, error) {
+func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreReply, error) {
 	var keys []string
 	for k := range in.Parameters {
 		keys = append(keys, k)
@@ -46,12 +46,12 @@ func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *pb.
 		if err := s.db.Save(&existingData).Error; err != nil {
 			return nil, err
 		}
-		return &pb.StoreReply{Message: "Data updated successfully"}, nil
+		return &proto.StoreReply{Message: "Data updated successfully"}, nil
 	}
 
 	if err := s.db.Create(&CalculationResults{ParametersJSON: string(parametersJson), Results: in.Results}).Error; err != nil {
 		return nil, err
 	}
 
-	return &pb.StoreReply{Message: "Data stored successfully"}, nil
+	return &proto.StoreReply{Message: "Data stored successfully"}, nil
 }

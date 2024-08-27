@@ -12,8 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/vega-project/ccb-operator/pkg/db"
-	pb "github.com/vega-project/ccb-operator/pkg/db/proto"
 	grpc_server "github.com/vega-project/ccb-operator/pkg/grpcserver"
+	proto "github.com/vega-project/ccb-operator/proto"
 )
 
 type options struct {
@@ -55,7 +55,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterDbServiceServer(s, grpc_server.NewServer(resultstore))
+	proto.RegisterDbServiceServer(s, grpc_server.NewServer(resultstore))
 
 	log.Printf("Server listening on port %d", o.port)
 	if err := s.Serve(lis); err != nil {
