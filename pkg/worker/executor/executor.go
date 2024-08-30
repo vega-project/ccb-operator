@@ -17,6 +17,7 @@ import (
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
+	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/pipelines"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -33,6 +34,7 @@ type Executor struct {
 	nodename        string
 	namespace       string
 	workerPool      string
+	grpcClient      *grpc.Client
 }
 
 func NewExecutor(
@@ -44,7 +46,8 @@ func NewExecutor(
 	nfsPath,
 	nodename,
 	namespace,
-	workerPool string) *Executor {
+	workerPool string,
+	grpcClient *grpc.Client) *Executor {
 	return &Executor{
 		ctx:             ctx,
 		client:          client,
@@ -55,6 +58,7 @@ func NewExecutor(
 		nodename:        nodename,
 		namespace:       namespace,
 		workerPool:      workerPool,
+		grpcClient:      grpcClient,
 	}
 }
 
@@ -136,6 +140,27 @@ func (e *Executor) Run() {
 					e.calcErrorChan <- calc.Name
 					break
 				}
+
+				data, err := os.ReadFile(filepath.Join(calcPath, "fort.7"))
+				if err != nil {
+					e.logger.WithError(err).Error("couldn't read the fort.7 file")
+					e.calcErrorChan <- calc.Name
+					break
+				}
+
+				params := map[string]string{
+					"teff":  fmt.Sprintf("%f", calc.Spec.Params.Teff),
+					"log_g": fmt.Sprintf("%f", calc.Spec.Params.LogG),
+				}
+
+				reply, err := e.grpcClient.StoreData(params, string(data))
+				if err != nil {
+					e.logger.WithError(err).Error("error while storing the data")
+					e.calcErrorChan <- calc.Name
+					break
+				}
+
+				e.logger.Infof("gRPC server response: %s", reply.GetMessage())
 			default:
 				for index, step := range calc.Spec.Steps {
 					if len(step.Status) != 0 {
@@ -181,17 +206,15 @@ func (e *Executor) Run() {
 						e.calcErrorChan <- calc.Name
 					}
 				}
+				if err := copyMatchingFiles(calcPath, filepath.Join(rootFolder, calc.Labels[util.CalculationNameLabel]), calc.OutputFilesRegex); err != nil {
+					e.logger.WithError(err).Error("couldn't copy the output files")
+					e.calcErrorChan <- calc.Name
+				}
 
-			}
-
-			if err := copyMatchingFiles(calcPath, filepath.Join(rootFolder, calc.Labels[util.CalculationNameLabel]), calc.OutputFilesRegex); err != nil {
-				e.logger.WithError(err).Error("couldn't copy the output files")
-				e.calcErrorChan <- calc.Name
-			}
-
-			if err := os.RemoveAll(calcPath); err != nil {
-				e.logger.WithField("path", calcPath).WithError(err).Error("couldn't remove the temp directory")
-				e.calcErrorChan <- calc.Name
+				if err := os.RemoveAll(calcPath); err != nil {
+					e.logger.WithField("path", calcPath).WithError(err).Error("couldn't remove the temp directory")
+					e.calcErrorChan <- calc.Name
+				}
 			}
 
 			// All steps finished. Update worker in workerpool
