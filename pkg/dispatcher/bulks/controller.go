@@ -87,29 +87,36 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	logger.Info("Starting reconciliation")
 
 	bulk := &bulkv1.CalculationBulk{}
-	err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, bulk)
-	if err != nil {
+	if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, bulk); err != nil {
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
-		r.calculationCh <- *newCalculationForBulk(*bulk, *bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
-			util.BulkLabel:            bulk.Name,
-			util.PostCalculationLabel: "",
-			util.CalcRootFolder:       bulk.RootFolder,
-		})
-		return nil
-	}
+	if bulk.Status.State != bulkv1.CalculationBulkProcessingState {
+		bulk.Status.State = bulkv1.CalculationBulkProcessingState
+		if err := r.client.Update(ctx, bulk); err != nil {
+			return fmt.Errorf("failed to update calculation bulk status: %w", err)
+		}
 
-	for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
-		if item.Calculation.Phase == "" {
-			r.calculationCh <- *newCalculationForBulk(*bulk, item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
+		if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
+			r.calculationCh <- *newCalculationForBulk(*bulk, *bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
 				util.BulkLabel:            bulk.Name,
-				util.CalculationNameLabel: item.Name,
+				util.PostCalculationLabel: "",
 				util.CalcRootFolder:       bulk.RootFolder,
 			})
+			return nil
+		}
+
+		for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
+			if item.Calculation.Phase == "" {
+				r.calculationCh <- *newCalculationForBulk(*bulk, item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
+					util.BulkLabel:            bulk.Name,
+					util.CalculationNameLabel: item.Name,
+					util.CalcRootFolder:       bulk.RootFolder,
+				})
+			}
 		}
 	}
+
 	return nil
 }
 
