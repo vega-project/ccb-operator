@@ -211,13 +211,14 @@ func (e *Executor) Run() {
 					e.calcErrorChan <- calc.Name
 				}
 
-				if err := os.RemoveAll(calcPath); err != nil {
-					e.logger.WithField("path", calcPath).WithError(err).Error("couldn't remove the temp directory")
-					e.calcErrorChan <- calc.Name
-				}
 			}
 
-			// All steps finished. Update worker in workerpool
+			// All steps finished. Update worker in workerpool and cleanup
+			e.logger.WithField("calc-path", calcPath).Info("All steps finished. Cleaning up...")
+			if err := os.RemoveAll(calcPath); err != nil {
+				e.logger.WithField("path", calcPath).WithError(err).Error("couldn't remove the temp directory")
+				e.calcErrorChan <- calc.Name
+			}
 			if err := util.UpdateWorkerStatusInPool(e.ctx, e.client, e.workerPool, e.nodename, e.namespace, workersv1.WorkerAvailableState); err != nil {
 				// TODO: retry until the state is updated, otherwise the worker will deadlock
 				panic(fmt.Errorf("failed to update worker's state in worker pool: %w", err))
