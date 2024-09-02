@@ -3,6 +3,7 @@ package bulks
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/sirupsen/logrus"
 
@@ -18,6 +19,7 @@ import (
 
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
+	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -91,36 +93,76 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get calculation bulk: %s in namespace %s: %w", req.Name, req.Namespace, err)
 	}
 
-	if bulk.Status.State != bulkv1.CalculationBulkProcessingState {
-		bulk.Status.State = bulkv1.CalculationBulkProcessingState
-		if err := r.client.Update(ctx, bulk); err != nil {
-			return fmt.Errorf("failed to update calculation bulk status: %w", err)
-		}
+	workerpool := &workersv1.WorkerPool{}
+	if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: bulk.Namespace, Name: bulk.WorkerPool}, workerpool); err != nil {
+		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, bulk.Namespace, err)
+	}
 
-		if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
-			r.calculationCh <- *newCalculationForBulk(*bulk, *bulk.PostCalculation, req.Namespace, bulk.WorkerPool, map[string]string{
-				util.BulkLabel:            bulk.Name,
-				util.PostCalculationLabel: "",
-				util.CalcRootFolder:       bulk.RootFolder,
-			})
-			return nil
-		}
+	// If the bulk is finished and the post-calculation is not yet created, create it
+	if util.IsAllFinishedCalculations(bulk.Calculations) && bulk.PostCalculation != nil && bulk.PostCalculation.Phase == "" {
+		for _, worker := range workerpool.Spec.Workers {
+			if worker.State == workersv1.WorkerAvailableState {
 
-		for _, item := range util.GetSortedCreatedCalculations(bulk.Calculations).Items {
-			if item.Calculation.Phase == "" {
-				r.calculationCh <- *newCalculationForBulk(*bulk, item.Calculation, req.Namespace, bulk.WorkerPool, map[string]string{
+				calc := *newCalculationForBulk(*bulk, *bulk.PostCalculation, req.Namespace, worker.Name, bulk.WorkerPool, map[string]string{
 					util.BulkLabel:            bulk.Name,
-					util.CalculationNameLabel: item.Name,
+					util.PostCalculationLabel: "",
 					util.CalcRootFolder:       bulk.RootFolder,
+					util.AssignWorkerLabel:    worker.Name,
 				})
+
+				r.logger.WithField("calc-name", calc.Name).Info("Creating post calculation.")
+				if err := r.client.Create(ctx, &calc); err != nil {
+					r.logger.WithError(err).Error("couldn't create post calculation")
+					return err
+				}
+				return nil
 			}
+		}
+	}
+
+	calculations := assignCalculationsToWorkers(bulk, workerpool, req.Namespace)
+	for _, calc := range calculations {
+		r.logger.WithField("calc-name", calc.Name).Info("Creating calculation.")
+		if err := r.client.Create(ctx, &calc); err != nil {
+			r.logger.WithError(err).Error("couldn't create calculation")
 		}
 	}
 
 	return nil
 }
 
-func newCalculationForBulk(bulk bulkv1.CalculationBulk, calcBulkCalculation bulkv1.Calculation, namespace, workerPool string, labels map[string]string) *v1.Calculation {
+func assignCalculationsToWorkers(bulk *bulkv1.CalculationBulk, workerpool *workersv1.WorkerPool, namespace string) []v1.Calculation {
+	var calculations []v1.Calculation
+	calculationItems := util.GetSortedCreatedCalculations(bulk.Calculations).Items
+	calculationIndex := 0
+
+	// Sort workers
+	workerKeys := make([]string, 0, len(workerpool.Spec.Workers))
+	for k := range workerpool.Spec.Workers {
+		workerKeys = append(workerKeys, k)
+	}
+	sort.Strings(workerKeys)
+
+	for _, w := range workerKeys {
+		worker := workerpool.Spec.Workers[w]
+		if worker.State == workersv1.WorkerAvailableState && calculationIndex < len(calculationItems) {
+			item := calculationItems[calculationIndex]
+			if item.Calculation.Phase == "" {
+				calculation := newCalculationForBulk(*bulk, item.Calculation, namespace, worker.Name, bulk.WorkerPool, map[string]string{
+					util.BulkLabel:            bulk.Name,
+					util.CalculationNameLabel: item.Name,
+					util.CalcRootFolder:       bulk.RootFolder,
+					util.AssignWorkerLabel:    worker.Name,
+				})
+				calculations = append(calculations, *calculation)
+				calculationIndex++
+			}
+		}
+	}
+	return calculations
+}
+
+func newCalculationForBulk(bulk bulkv1.CalculationBulk, calcBulkCalculation bulkv1.Calculation, namespace, assignWorker, workerPool string, labels map[string]string) *v1.Calculation {
 	calc := util.NewCalculation(&calcBulkCalculation)
 
 	if calc.InputFiles == nil {
@@ -138,5 +180,7 @@ func newCalculationForBulk(bulk bulkv1.CalculationBulk, calcBulkCalculation bulk
 	calc.Namespace = namespace
 	calc.WorkerPool = workerPool
 	calc.Labels = labels
+	calc.Assign = assignWorker
+
 	return calc
 }
