@@ -4,7 +4,6 @@ import (
 	"flag"
 	"net/http"
 	"os"
-	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/factory"
-	"github.com/vega-project/ccb-operator/pkg/dispatcher/scheduler"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
@@ -61,9 +59,6 @@ func main() {
 	}()
 
 	calculationCh := make(chan v1.Calculation)
-	stop := make(chan struct{})
-	wg := &sync.WaitGroup{}
-
 	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{DryRunClient: o.dryRun})
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
@@ -94,14 +89,7 @@ func main() {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 
-	sched := scheduler.NewScheduler(calculationCh, mgr.GetClient())
-
-	wg.Add(1)
-	go sched.Run(ctx, stop, wg)
-
 	if err := mgr.Start(ctx); err != nil {
 		logrus.WithError(err).Error("Manager ended with error")
-		stop <- struct{}{}
-		wg.Wait()
 	}
 }

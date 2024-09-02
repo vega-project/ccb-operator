@@ -8,4 +8,5 @@ const (
 	PostCalculationLabel = "vegaproject.io/postCalculation"
 	CalcRootFolder       = "vegaproject.io/rootFolder"
 	FactoryLabel         = "vegaproject.io/factory"
+	AssignWorkerLabel    = "vegaproject.io/assign"
 )
