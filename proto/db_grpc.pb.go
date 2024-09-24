@@ -20,13 +20,15 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	DbService_StoreData_FullMethodName = "/db.DbService/StoreData"
+	DbService_GetData_FullMethodName   = "/db.DbService/GetData"
 )
 
 // DbServiceClient is the client API for DbService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DbServiceClient interface {
-	StoreData(ctx context.Context, in *StoreRequest, opts ...grpc.CallOption) (*StoreReply, error)
+	StoreData(ctx context.Context, in *StoreRequest, opts ...grpc.CallOption) (*StoreResponse, error)
+	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataResponse, error)
 }
 
 type dbServiceClient struct {
@@ -37,10 +39,20 @@ func NewDbServiceClient(cc grpc.ClientConnInterface) DbServiceClient {
 	return &dbServiceClient{cc}
 }
 
-func (c *dbServiceClient) StoreData(ctx context.Context, in *StoreRequest, opts ...grpc.CallOption) (*StoreReply, error) {
+func (c *dbServiceClient) StoreData(ctx context.Context, in *StoreRequest, opts ...grpc.CallOption) (*StoreResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StoreReply)
+	out := new(StoreResponse)
 	err := c.cc.Invoke(ctx, DbService_StoreData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dbServiceClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDataResponse)
+	err := c.cc.Invoke(ctx, DbService_GetData_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +63,8 @@ func (c *dbServiceClient) StoreData(ctx context.Context, in *StoreRequest, opts 
 // All implementations should embed UnimplementedDbServiceServer
 // for forward compatibility.
 type DbServiceServer interface {
-	StoreData(context.Context, *StoreRequest) (*StoreReply, error)
+	StoreData(context.Context, *StoreRequest) (*StoreResponse, error)
+	GetData(context.Context, *GetDataRequest) (*GetDataResponse, error)
 }
 
 // UnimplementedDbServiceServer should be embedded to have
@@ -61,8 +74,11 @@ type DbServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedDbServiceServer struct{}
 
-func (UnimplementedDbServiceServer) StoreData(context.Context, *StoreRequest) (*StoreReply, error) {
+func (UnimplementedDbServiceServer) StoreData(context.Context, *StoreRequest) (*StoreResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StoreData not implemented")
+}
+func (UnimplementedDbServiceServer) GetData(context.Context, *GetDataRequest) (*GetDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetData not implemented")
 }
 func (UnimplementedDbServiceServer) testEmbeddedByValue() {}
 
@@ -102,6 +118,24 @@ func _DbService_StoreData_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DbService_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DbServiceServer).GetData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DbService_GetData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DbServiceServer).GetData(ctx, req.(*GetDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DbService_ServiceDesc is the grpc.ServiceDesc for DbService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -112,6 +146,10 @@ var DbService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StoreData",
 			Handler:    _DbService_StoreData_Handler,
+		},
+		{
+			MethodName: "GetData",
+			Handler:    _DbService_GetData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

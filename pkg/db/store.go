@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 
 	proto "github.com/vega-project/ccb-operator/proto"
@@ -12,14 +13,15 @@ import (
 )
 
 type CalculationResultsStore interface {
-	StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreReply, error)
+	StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreResponse, error)
+	GetData(ctx context.Context, parameters map[string]string) (*CalculationResults, error)
 }
 
 type calculationResultsStore struct {
 	db *gorm.DB
 }
 
-func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreReply, error) {
+func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreResponse, error) {
 	var keys []string
 	for k := range in.Parameters {
 		keys = append(keys, k)
@@ -46,12 +48,28 @@ func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *pro
 		if err := s.db.Save(&existingData).Error; err != nil {
 			return nil, err
 		}
-		return &proto.StoreReply{Message: "Data updated successfully"}, nil
+		return &proto.StoreResponse{Message: "Data updated successfully"}, nil
 	}
 
 	if err := s.db.Create(&CalculationResults{ParametersJSON: string(parametersJson), Results: in.Results}).Error; err != nil {
 		return nil, err
 	}
 
-	return &proto.StoreReply{Message: "Data stored successfully"}, nil
+	return &proto.StoreResponse{Message: "Data stored successfully"}, nil
+}
+
+func (s *calculationResultsStore) GetData(ctx context.Context, parameters map[string]string) (*CalculationResults, error) {
+	query := s.db.Model(&CalculationResults{})
+
+	for key, value := range parameters {
+		jsonQuery := fmt.Sprintf("parameters_json ->> '%s' = ?", key)
+		query = query.Where(jsonQuery, value)
+	}
+
+	var result CalculationResults
+	if err := query.First(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to find CalculationResults: %w", err)
+	}
+
+	return &result, nil
 }
