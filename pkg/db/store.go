@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 
 	proto "github.com/vega-project/ccb-operator/proto"
 
@@ -22,30 +21,19 @@ type calculationResultsStore struct {
 }
 
 func (s *calculationResultsStore) StoreOrUpdateData(ctx context.Context, in *proto.StoreRequest) (*proto.StoreResponse, error) {
-	var keys []string
-	for k := range in.Parameters {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var sortedParameters []string
-	for _, k := range keys {
-		sortedParameters = append(sortedParameters, k, in.Parameters[k])
-	}
-
-	parametersJson, err := json.Marshal(sortedParameters)
+	parametersJson, err := json.Marshal(in.Parameters)
 	if err != nil {
 		return nil, err
 	}
 
-	var existingData CalculationResults
-	if err := s.db.Where("parameters_json = ?", parametersJson).First(&existingData).Error; err != nil {
+	existingData, err := s.GetData(ctx, in.Parameters)
+	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
 		}
 	} else {
 		existingData.Results = in.Results
-		if err := s.db.Save(&existingData).Error; err != nil {
+		if err := s.db.Save(existingData).Error; err != nil {
 			return nil, err
 		}
 		return &proto.StoreResponse{Message: "Data updated successfully"}, nil
