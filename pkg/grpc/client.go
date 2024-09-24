@@ -26,7 +26,7 @@ func NewClient(address string) (*Client, error) {
 }
 
 // StoreData stores the given data in the gRPC server.
-func (c *Client) StoreData(parametres map[string]string, results string) (*proto.StoreReply, error) {
+func (c *Client) StoreData(parametres map[string]string, results string) (*proto.StoreResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -34,6 +34,14 @@ func (c *Client) StoreData(parametres map[string]string, results string) (*proto
 		Parameters: parametres,
 		Results:    results,
 	})
+}
+
+// GetData retrieves the data from the database filtered by the given parameters.
+func (c *Client) GetData(parametres map[string]string) (*proto.GetDataResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return c.client.GetData(ctx, &proto.GetDataRequest{Parameters: parametres})
 }
 
 // Close closes the connection to the gRPC server.

@@ -16,6 +16,7 @@ import (
 
 	_ "github.com/vega-project/ccb-operator/cmd/apiserver/docs"
 
+	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
@@ -25,7 +26,8 @@ type options struct {
 	resultsDir string
 	namespace  string
 
-	simulator simulator
+	simulator         simulator
+	grpcClientOptions grpc.Options
 }
 
 func gatherOptions() options {
@@ -37,6 +39,7 @@ func gatherOptions() options {
 	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
 	fs.StringVar(&o.resultsDir, "results-dir", "/var/tmp/nfs", "The path where the calculations results exist.")
 	o.simulator.bind(fs)
+	o.grpcClientOptions.Bind(fs)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		logrus.WithError(err).Fatal("couldn't parse arguments")
@@ -70,12 +73,18 @@ func main() {
 		}
 	}
 
+	grpcClient, err := grpc.NewClient(o.grpcClientOptions.Address())
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to construct grpc client")
+	}
+
 	s := server{
 		logger:      logrus.WithField("component", "apiserver"),
 		ctx:         ctx,
 		client:      c,
 		resultsPath: o.resultsDir,
 		namespace:   o.namespace,
+		grpcClient:  grpcClient,
 	}
 
 	r := gin.New()
@@ -87,7 +96,6 @@ func main() {
 
 	r.GET("/calculation", s.getCalculation)
 	r.GET("/calculation/:id", s.getCalculationByName)
-	r.GET("/calculations/results/:calcID", s.downloadResults)
 
 	r.GET("/bulks", s.getCalculationBulks)
 	r.GET("/bulk/:id", s.getCalculationBulkByName)
@@ -99,6 +107,7 @@ func main() {
 	r.GET("/workerpool/:id", s.getWorkerPoolByName)
 	r.POST("workerpool/create", s.createWorkerPool)
 	r.DELETE("/workerpools/delete/:id", s.deleteWorkerPool)
+	r.POST("/results", s.getResults)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

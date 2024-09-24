@@ -6,7 +6,8 @@ option go_package = "pkg/db";
 
 
 service DbService {
-  rpc StoreData (StoreRequest) returns (StoreReply) {}
+  rpc StoreData (StoreRequest) returns (StoreResponse) {}
+  rpc GetData (GetDataRequest) returns (GetDataResponse) {}
 }
 
 message StoreRequest {
@@ -14,6 +15,14 @@ message StoreRequest {
   string results = 2;
 }
 
-message StoreReply {
+message StoreResponse {
   string message = 1;
+}
+
+message GetDataRequest {
+  map<string, string> parameters = 1;
+}
+
+message GetDataResponse {
+  string results = 1;
 }
