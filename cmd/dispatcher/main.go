@@ -16,13 +16,14 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/calculations"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/factory"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/workers"
+	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/util"
 )
 
 type options struct {
-	namespace string
-	dryRun    bool
-	nfsPath   string
+	namespace         string
+	nfsPath           string
+	grpcClientOptions grpc.Options
 }
 
 func gatherOptions() (options, error) {
@@ -30,8 +31,8 @@ func gatherOptions() (options, error) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists.")
-	fs.BoolVar(&o.dryRun, "dry-run", true, "Whether to mutate the objects.")
 	fs.StringVar(&o.nfsPath, "nfs-path", "/var/tmp/nfs", "Path of the mounted nfs storage.")
+	o.grpcClientOptions.Bind(fs)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		return o, err
@@ -59,7 +60,7 @@ func main() {
 	}()
 
 	calculationCh := make(chan v1.Calculation)
-	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{DryRunClient: o.dryRun})
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{})
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
 	}
@@ -81,7 +82,12 @@ func main() {
 		logrus.WithError(err).Fatal("Failed to add workers controller to manager")
 	}
 
-	if err := bulks.AddToManager(ctx, mgr, o.namespace, calculationCh); err != nil {
+	grpcClient, err := grpc.NewClient(o.grpcClientOptions.Address())
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to construct grpc client")
+	}
+
+	if err := bulks.AddToManager(ctx, mgr, o.namespace, calculationCh, grpcClient); err != nil {
 		logrus.WithError(err).Fatal("Failed to add workerpools controller to manager")
 	}
 

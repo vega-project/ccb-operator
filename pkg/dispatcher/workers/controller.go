@@ -8,12 +8,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -41,49 +40,59 @@ func AddToManager(mgr manager.Manager, ns string) error {
 		return fmt.Errorf("failed to construct controller: %w", err)
 	}
 
-	predicateFuncs := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
-		DeleteFunc: func(e event.DeleteEvent) bool { return e.Object.GetNamespace() == ns },
-		UpdateFunc: func(e event.UpdateEvent) bool {
-
-			// Object is marked for deletion
-			if e.ObjectNew.GetDeletionTimestamp() != nil {
-				return false
-			}
-
-			return e.ObjectNew.GetNamespace() == ns
-		},
-		GenericFunc: func(e event.GenericEvent) bool { return false },
-	}
-	if err := c.Watch(source.NewKindWithCache(&corev1.Pod{}, mgr.GetCache()), podHandler(), predicateFuncs); err != nil {
-		return fmt.Errorf("failed to create watch for Pods: %w", err)
+	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Pod{}, &podHandler{namespace: ns})); err != nil {
+		return fmt.Errorf("failed to create watch for clusterpools: %w", err)
 	}
 
 	return nil
 }
 
-func podHandler() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
-		pod, ok := o.(*corev1.Pod)
+type podHandler struct {
+	namespace string
+}
+
+func (h *podHandler) Create(ctx context.Context, e event.TypedCreateEvent[*corev1.Pod], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if h.namespace != e.Object.Namespace {
+		return
+	}
+	if e.Object.ObjectMeta.Labels != nil {
+		v, ok := e.Object.ObjectMeta.Labels["name"]
 		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("got object that was not a Pod")
-			return nil
+			return
 		}
+		if v != "vega-worker" {
+			return
+		}
+	}
+	q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: e.Object.Namespace, Name: e.Object.Name}})
+}
 
-		if pod.ObjectMeta.Labels != nil {
-			v, ok := pod.ObjectMeta.Labels["name"]
-			if !ok {
-				return nil
-			}
-			if v != "vega-worker" {
-				return nil
-			}
-		}
+func (h *podHandler) Update(ctx context.Context, e event.TypedUpdateEvent[*corev1.Pod], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if h.namespace != e.ObjectNew.Namespace {
+		return
+	}
 
-		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Namespace: pod.Namespace, Name: pod.Name}},
+	if e.ObjectNew.GetDeletionTimestamp() != nil {
+		return
+	}
+
+	if e.ObjectNew.ObjectMeta.Labels != nil {
+		v, ok := e.ObjectNew.ObjectMeta.Labels["name"]
+		if !ok {
+			return
 		}
-	})
+		if v != "vega-worker" {
+			return
+		}
+	}
+
+	q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: e.ObjectNew.Namespace, Name: e.ObjectNew.Name}})
+}
+
+func (h *podHandler) Delete(ctx context.Context, e event.TypedDeleteEvent[*corev1.Pod], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
+func (h *podHandler) Generic(ctx context.Context, e event.TypedGenericEvent[*corev1.Pod], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 type reconciler struct {

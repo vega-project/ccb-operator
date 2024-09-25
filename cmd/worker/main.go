@@ -21,7 +21,6 @@ type options struct {
 	namespace         string
 	workerPool        string
 	nodename          string
-	dryRun            bool
 	grpcClientOptions grpc.Options
 }
 
@@ -33,7 +32,6 @@ func gatherOptions() options {
 	fs.StringVar(&o.namespace, "namespace", "vega", "Namespace where the calculations exists")
 	fs.StringVar(&o.nodename, "nodename", "", "The name of the node in which the worker is running")
 	fs.StringVar(&o.workerPool, "worker-pool", "vega-workers", "The pool where the worker will post the status updates")
-	fs.BoolVar(&o.dryRun, "dry-run", true, "")
 	o.grpcClientOptions.Bind(fs)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -84,7 +82,7 @@ func main() {
 
 	ctx := controllerruntime.SetupSignalHandler()
 
-	op := worker.NewMainOperator(ctx, hostname, o.nodename, o.namespace, o.workerPool, o.nfsPath, clusterConfig, o.dryRun, o.grpcClientOptions.Address())
+	op := worker.NewMainOperator(ctx, hostname, o.nodename, o.namespace, o.workerPool, o.nfsPath, clusterConfig, o.grpcClientOptions.Address())
 	if err := op.Initialize(); err != nil {
 		logger.WithError(err).Fatal("couldn't initialize operator")
 	}

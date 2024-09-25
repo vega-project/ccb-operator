@@ -871,7 +871,7 @@ func TestGetWorkerPoolByName(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if diff := cmp.Diff(tc.expected, *actualData.Data, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+		if diff := cmp.Diff(tc.expected, *actualData.Data, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"), cmpopts.IgnoreFields(metav1.TypeMeta{}, "APIVersion", "Kind")); diff != "" {
 			if !tc.errorExpected {
 				t.Fatal(diff)
 			}
