@@ -11,12 +11,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -44,19 +43,33 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodena
 		return fmt.Errorf("failed to construct controller: %w", err)
 	}
 
-	predicateFuncs := predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == namespace },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
-	}
-
-	if err := c.Watch(source.NewKindWithCache(&workersv1.WorkerPool{}, mgr.GetCache()), workerPoolsHandler(), predicateFuncs); err != nil {
-		return fmt.Errorf("failed to create watch for WorkerPools: %w", err)
+	if err := c.Watch(source.Kind(mgr.GetCache(), &workersv1.WorkerPool{}, &workerPoolsHandler{namespace: ns})); err != nil {
+		return fmt.Errorf("failed to create watch for clusterpools: %w", err)
 	}
 
 	return nil
 }
+
+type workerPoolsHandler struct {
+	namespace string
+}
+
+func (h *workerPoolsHandler) Create(ctx context.Context, e event.TypedCreateEvent[*workersv1.WorkerPool], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if h.namespace != e.Object.Namespace {
+		return
+	}
+	q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: e.Object.Namespace, Name: e.Object.Name}})
+}
+
+func (h *workerPoolsHandler) Update(ctx context.Context, e event.TypedUpdateEvent[*workersv1.WorkerPool], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
+func (h *workerPoolsHandler) Delete(ctx context.Context, e event.TypedDeleteEvent[*workersv1.WorkerPool], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
+func (h *workerPoolsHandler) Generic(ctx context.Context, e event.TypedGenericEvent[*workersv1.WorkerPool], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
 func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrlruntimeclient.Client, workerPool, nodename, hostname, namespace string) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		pool := &workersv1.WorkerPool{}
@@ -101,20 +114,6 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 	}
 
 	return nil
-}
-
-func workerPoolsHandler() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
-		pool, ok := o.(*workersv1.WorkerPool)
-		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a WorkerPool")
-			return nil
-		}
-
-		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Namespace: pool.Namespace, Name: pool.Name}},
-		}
-	})
 }
 
 type reconciler struct {

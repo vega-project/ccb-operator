@@ -12,6 +12,7 @@ const (
 	ProcessingPhase CalculationPhase = "Processing"
 	CompletedPhase  CalculationPhase = "Completed"
 	FailedPhase     CalculationPhase = "Failed"
+	CachedPhase     CalculationPhase = "Cached"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

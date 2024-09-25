@@ -13,13 +13,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
 
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -51,32 +50,30 @@ func AddToManager(ctx context.Context, mgr manager.Manager, ns, hostname, nodena
 		return fmt.Errorf("failed to construct controller: %w", err)
 	}
 
-	predicateFuncs := predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return e.Object.GetNamespace() == ns },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
-		GenericFunc: func(e event.GenericEvent) bool { return false },
+	if err := c.Watch(source.Kind(mgr.GetCache(), &v1.Calculation{}, &calculationHandler{namespace: ns})); err != nil {
+		return fmt.Errorf("failed to create watch for clusterpools: %w", err)
 	}
-
-	if err := c.Watch(source.NewKindWithCache(&v1.Calculation{}, mgr.GetCache()), calculationHandler(), predicateFuncs); err != nil {
-		return fmt.Errorf("failed to create watch for Calculations: %w", err)
-	}
-
 	return nil
 }
 
-func calculationHandler() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(o ctrlruntimeclient.Object) []reconcile.Request {
-		calc, ok := o.(*v1.Calculation)
-		if !ok {
-			logrus.WithField("type", fmt.Sprintf("%T", o)).Error("Got object that was not a Calculation")
-			return nil
-		}
+type calculationHandler struct {
+	namespace string
+}
 
-		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{Namespace: calc.Namespace, Name: calc.Name}},
-		}
-	})
+func (h *calculationHandler) Create(ctx context.Context, e event.TypedCreateEvent[*v1.Calculation], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if h.namespace != e.Object.Namespace {
+		return
+	}
+	q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: e.Object.Namespace, Name: e.Object.Name}})
+}
+
+func (h *calculationHandler) Update(ctx context.Context, e event.TypedUpdateEvent[*v1.Calculation], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
+func (h *calculationHandler) Delete(ctx context.Context, e event.TypedDeleteEvent[*v1.Calculation], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+}
+
+func (h *calculationHandler) Generic(ctx context.Context, e event.TypedGenericEvent[*v1.Calculation], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 }
 
 type reconciler struct {

@@ -27,16 +27,14 @@ type Operator struct {
 	namespace              string
 	workerPool             string
 	nfsPath                string
-	dryRun                 bool
 	grpcAddress            string
 }
 
-func NewMainOperator(ctx context.Context, hostname, nodename, namespace, workerPool, nfsPath string, cfg *rest.Config, dryRun bool, grpcAddress string) *Operator {
+func NewMainOperator(ctx context.Context, hostname, nodename, namespace, workerPool, nfsPath string, cfg *rest.Config, grpcAddress string) *Operator {
 	return &Operator{
 		ctx:         ctx,
 		logger:      logrus.WithField("name", "operator"),
 		cfg:         cfg,
-		dryRun:      dryRun,
 		hostname:    hostname,
 		nodename:    nodename,
 		namespace:   namespace,
@@ -51,7 +49,7 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan util.Result)
 	calcErrorChan := make(chan string)
 
-	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{DryRunClient: op.dryRun})
+	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{})
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}

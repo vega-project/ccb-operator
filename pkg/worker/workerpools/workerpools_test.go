@@ -141,7 +141,7 @@ func TestReconcile(t *testing.T) {
 			}
 
 			reconcileWorkerPoolsForTests(actualWorkerPoolList.Items)
-			if diff := cmp.Diff(actualWorkerPoolList.Items, tc.expected, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
+			if diff := cmp.Diff(actualWorkerPoolList.Items, tc.expected, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"), cmpopts.IgnoreFields(metav1.TypeMeta{}, "APIVersion", "Kind")); diff != "" {
 				t.Fatal(diff)
 			}
 
