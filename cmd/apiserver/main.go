@@ -21,12 +21,9 @@ import (
 )
 
 type options struct {
-	dryRun     bool
-	port       int
-	resultsDir string
-	namespace  string
+	port      int
+	namespace string
 
-	simulator         simulator
 	grpcClientOptions grpc.Options
 }
 
@@ -35,10 +32,7 @@ func gatherOptions() options {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	fs.IntVar(&o.port, "port", 8080, "Port number where the server will listen to")
-	fs.BoolVar(&o.dryRun, "dry-run", true, "Dry run mode with a fake calculation agent")
 	fs.StringVar(&o.namespace, "namespace", "vega", "The namespace where the calculations exist.")
-	fs.StringVar(&o.resultsDir, "results-dir", "/var/tmp/nfs", "The path where the calculations results exist.")
-	o.simulator.bind(fs)
 	o.grpcClientOptions.Bind(fs)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -58,19 +52,9 @@ func main() {
 		logrus.WithError(err).Fatal("could not load cluster clusterConfig")
 	}
 
-	var c ctrlruntimeclient.Client
-	if o.dryRun {
-		logrus.Info("Running on dry mode...")
-		o.simulator.initialize(ctx)
-		if err := o.simulator.startDryRun(); err != nil {
-			logrus.WithError(err).Fatal("error while running in dry mode")
-		}
-		c = o.simulator.fakeClient
-	} else {
-		c, err = ctrlruntimeclient.New(clusterConfig, ctrlruntimeclient.Options{})
-		if err != nil {
-			logrus.WithError(err).Fatal("failed to create client")
-		}
+	c, err := ctrlruntimeclient.New(clusterConfig, ctrlruntimeclient.Options{})
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create client")
 	}
 
 	grpcClient, err := grpc.NewClient(o.grpcClientOptions.Address())
@@ -79,12 +63,11 @@ func main() {
 	}
 
 	s := server{
-		logger:      logrus.WithField("component", "apiserver"),
-		ctx:         ctx,
-		client:      c,
-		resultsPath: o.resultsDir,
-		namespace:   o.namespace,
-		grpcClient:  grpcClient,
+		logger:     logrus.WithField("component", "apiserver"),
+		ctx:        ctx,
+		client:     c,
+		namespace:  o.namespace,
+		grpcClient: grpcClient,
 	}
 
 	r := gin.New()

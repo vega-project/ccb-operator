@@ -25,12 +25,11 @@ import (
 )
 
 type server struct {
-	logger      *logrus.Entry
-	namespace   string
-	ctx         context.Context
-	client      ctrlruntimeclient.Client
-	resultsPath string
-	grpcClient  *grpc.Client
+	logger     *logrus.Entry
+	namespace  string
+	ctx        context.Context
+	client     ctrlruntimeclient.Client
+	grpcClient *grpc.Client
 }
 
 func (s *server) createCalculationBulk(c *gin.Context) {
