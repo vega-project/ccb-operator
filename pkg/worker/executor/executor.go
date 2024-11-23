@@ -34,7 +34,7 @@ type Executor struct {
 	nodename        string
 	namespace       string
 	workerPool      string
-	grpcClient      *grpc.Client
+	grpcClient      grpc.Client
 }
 
 func NewExecutor(
@@ -47,7 +47,7 @@ func NewExecutor(
 	nodename,
 	namespace,
 	workerPool string,
-	grpcClient *grpc.Client) *Executor {
+	grpcClient grpc.Client) *Executor {
 	return &Executor{
 		ctx:             ctx,
 		client:          client,

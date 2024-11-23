@@ -25,4 +25,5 @@ message GetDataRequest {
 
 message GetDataResponse {
   string results = 1;
+  string created_at = 2;
 }

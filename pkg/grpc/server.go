@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vega-project/ccb-operator/pkg/db"
@@ -36,5 +37,8 @@ func (s *Server) GetData(ctx context.Context, in *proto.GetDataRequest) (*proto.
 		l.WithError(err).Error("error getting data")
 		return nil, err
 	}
-	return &proto.GetDataResponse{Results: reply.Results}, err
+	return &proto.GetDataResponse{
+		Results:   reply.Results,
+		CreatedAt: reply.CreatedAt.Format(time.RFC3339),
+	}, err
 }

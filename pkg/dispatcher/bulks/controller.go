@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
 	"k8s.io/apimachinery/pkg/types"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/workqueue"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -29,7 +31,7 @@ const (
 	controllerName = "bulks"
 )
 
-func AddToManager(ctx context.Context, mgr manager.Manager, ns string, calculationCh chan v1.Calculation, gRPCClient *grpc.Client) error {
+func AddToManager(ctx context.Context, mgr manager.Manager, ns string, calculationCh chan v1.Calculation, gRPCClient grpc.Client) error {
 	c, err := controller.New(controllerName, mgr, controller.Options{
 		MaxConcurrentReconciles: 1,
 		Reconciler: &reconciler{
@@ -78,7 +80,7 @@ type reconciler struct {
 	logger        *logrus.Entry
 	client        ctrlruntimeclient.Client
 	calculationCh chan v1.Calculation
-	gRPCClient    *grpc.Client
+	gRPCClient    grpc.Client
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -105,7 +107,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		return fmt.Errorf("failed to get workerpool: %s in namespace %s: %w", bulk.WorkerPool, bulk.Namespace, err)
 	}
 
-	if err := r.reconcileCalculations(bulk.Calculations); err != nil {
+	if err := r.reconcileCalculations(bulk.Calculations, bulk.CreationTimestamp.Time); err != nil {
 		return fmt.Errorf("failed to reconcile calculations: %w", err)
 	}
 
@@ -146,28 +148,42 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	return nil
 }
 
-func (r *reconciler) reconcileCalculations(calcs map[string]bulkv1.Calculation) error {
+func (r *reconciler) reconcileCalculations(calcs map[string]bulkv1.Calculation, bulkCreationTime time.Time) error {
+	var errs []error
 	for key, calc := range calcs {
 		params := map[string]string{
-			"log_g": fmt.Sprintf("%f", calc.Params.LogG),
-			"teff":  fmt.Sprintf("%f", calc.Params.Teff),
+			"log_g": fmt.Sprintf("%.6f", calc.Params.LogG),
+			"teff":  fmt.Sprintf("%.6f", calc.Params.Teff),
 		}
 
-		_, err := r.gRPCClient.GetData(params)
+		resp, err := r.gRPCClient.GetData(params)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				continue
 			}
-			logrus.WithError(err).WithField("calc", key).Error("couldn't get results for calculation")
+			errs = append(errs, fmt.Errorf("couldn't get results for calculation %s: %w", key, err))
+			continue
+		}
+
+		if resp == nil {
+			continue
+		}
+
+		createdAt, err := time.Parse(time.RFC3339, resp.CreatedAt)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("couldn't parse created_at timestamp for calculation %s: %w", key, err))
+			continue
+		}
+
+		if createdAt.After(bulkCreationTime) {
 			continue
 		}
 
 		calc.Phase = v1.CachedPhase
 		calcs[key] = calc
-
 	}
 
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 func assignCalculationsToWorkers(bulk *bulkv1.CalculationBulk, workerpool *workersv1.WorkerPool, namespace string) []v1.Calculation {
