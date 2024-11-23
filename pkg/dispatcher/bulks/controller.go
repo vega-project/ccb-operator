@@ -108,7 +108,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 	}
 
 	if err := r.reconcileCalculations(bulk.Calculations, bulk.CreationTimestamp.Time); err != nil {
-		return fmt.Errorf("failed to reconcile calculations: %w", err)
+		logrus.WithError(err).Error("error while reconciling calculations")
 	}
 
 	if err := r.client.Update(ctx, bulk); err != nil {
