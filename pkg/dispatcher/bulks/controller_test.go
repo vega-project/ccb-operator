@@ -1,14 +1,20 @@
 package bulks
 
 import (
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/sirupsen/logrus"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	bulkv1 "github.com/vega-project/ccb-operator/pkg/apis/calculationbulk/v1"
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	workersv1 "github.com/vega-project/ccb-operator/pkg/apis/workers/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	proto "github.com/vega-project/ccb-operator/proto"
 )
 
 func Test_assignCalculationsToWorkers(t *testing.T) {
@@ -241,6 +247,128 @@ func Test_assignCalculationsToWorkers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if diff := cmp.Diff(assignCalculationsToWorkers(tt.bulk, tt.workerpool, tt.namespace), tt.want, cmpopts.IgnoreFields(metav1.Time{}, "Time")); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
+type fakeResults struct {
+	parameters map[string]string
+	createdAt  time.Time
+	results    string
+}
+
+type fakeGRPCClient struct {
+	results []fakeResults
+}
+
+func (f *fakeGRPCClient) StoreData(parameters map[string]string, results string) (*proto.StoreResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeGRPCClient) GetData(parameters map[string]string) (*proto.GetDataResponse, error) {
+	for _, result := range f.results {
+		if reflect.DeepEqual(result.parameters, parameters) {
+			return &proto.GetDataResponse{
+				Results:   result.results,
+				CreatedAt: result.createdAt.Format(time.RFC3339),
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (f *fakeGRPCClient) Close() error {
+	return nil
+}
+
+func Test_reconciler_reconcileCalculations(t *testing.T) {
+	tests := []struct {
+		name             string
+		results          []fakeResults
+		calcs            map[string]bulkv1.Calculation
+		bulkCreationTime time.Time
+		wantErr          bool
+		expectedCalcs    map[string]bulkv1.Calculation
+	}{
+		{
+			name: "no results",
+			calcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 10000.0}},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 11000.0}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 12000.0}},
+			},
+			results:          []fakeResults{},
+			bulkCreationTime: time.Now(),
+			expectedCalcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 10000.0}},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 11000.0}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.0, Teff: 12000.0}},
+			},
+		},
+
+		{
+			name: "results for some calculations",
+			calcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 10000.000000}},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 11000.000000}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 12000.000000}},
+			},
+			results: []fakeResults{
+				{
+					parameters: map[string]string{"log_g": "4.000000", "teff": "10000.000000"},
+					results:    "results1",
+					createdAt:  time.Now().Add(-24 * time.Hour),
+				},
+			},
+			bulkCreationTime: time.Now(),
+			expectedCalcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 10000.000000}, Phase: v1.CachedPhase},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 11000.000000}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 12000.000000}},
+			},
+		},
+
+		{
+			name: "results for some calculations, some results are newer than the bulk creation time",
+			calcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 10000.000000}},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 11000.000000}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 12000.000000}},
+			},
+			results: []fakeResults{
+				{
+					parameters: map[string]string{"log_g": "4.000000", "teff": "10000.000000"},
+					results:    "results1",
+					createdAt:  time.Now().Add(-24 * time.Hour),
+				},
+				{
+					parameters: map[string]string{"log_g": "4.000000", "teff": "11000.000000"},
+					results:    "results1",
+					createdAt:  time.Now().Add(+1 * time.Hour),
+				},
+			},
+			bulkCreationTime: time.Now(),
+			expectedCalcs: map[string]bulkv1.Calculation{
+				"calc1": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 10000.000000}, Phase: v1.CachedPhase},
+				"calc2": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 11000.000000}},
+				"calc3": {Pipeline: v1.VegaPipeline, Params: v1.Params{LogG: 4.000000, Teff: 12000.000000}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &reconciler{
+				logger:     logrus.WithField("name", tt.name),
+				gRPCClient: &fakeGRPCClient{results: tt.results},
+			}
+			if err := r.reconcileCalculations(tt.calcs, tt.bulkCreationTime); (err != nil) != tt.wantErr {
+				t.Errorf("reconciler.reconcileCalculations() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if diff := cmp.Diff(tt.calcs, tt.expectedCalcs); diff != "" {
 				t.Fatal(diff)
 			}
 		})

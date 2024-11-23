@@ -29,7 +29,7 @@ type server struct {
 	namespace  string
 	ctx        context.Context
 	client     ctrlruntimeclient.Client
-	grpcClient *grpc.Client
+	grpcClient grpc.Client
 }
 
 func (s *server) createCalculationBulk(c *gin.Context) {
