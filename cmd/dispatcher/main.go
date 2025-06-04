@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
@@ -60,7 +61,8 @@ func main() {
 	}()
 
 	calculationCh := make(chan v1.Calculation)
-	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{})
+	cacheOpts := cache.Options{DefaultNamespaces: map[string]cache.Config{o.namespace: {}}}
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{Cache: cacheOpts})
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
 	}
