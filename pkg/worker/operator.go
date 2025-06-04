@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"k8s.io/client-go/rest"
 
@@ -49,7 +50,8 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan util.Result)
 	calcErrorChan := make(chan string)
 
-	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{})
+	cacheOpts := cache.Options{DefaultNamespaces: map[string]cache.Config{op.namespace: {}}}
+	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{Cache: cacheOpts})
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
