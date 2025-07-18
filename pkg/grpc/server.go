@@ -2,11 +2,15 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vega-project/ccb-operator/pkg/db"
 	proto "github.com/vega-project/ccb-operator/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 type Server struct {
@@ -26,7 +30,7 @@ func (s *Server) StoreData(ctx context.Context, in *proto.StoreRequest) (*proto.
 		return nil, err
 	}
 
-	l.Infof(reply.GetMessage())
+	l.Info(reply.GetMessage())
 	return reply, err
 }
 
@@ -34,6 +38,9 @@ func (s *Server) GetData(ctx context.Context, in *proto.GetDataRequest) (*proto.
 	l := logrus.WithField("parametres", in.Parameters)
 	reply, err := s.resultstore.GetData(ctx, in.Parameters)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
 		l.WithError(err).Error("error getting data")
 		return nil, err
 	}

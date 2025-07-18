@@ -6,11 +6,13 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	v1 "github.com/vega-project/ccb-operator/pkg/apis/calculations/v1"
 	"github.com/vega-project/ccb-operator/pkg/dispatcher/bulks"
@@ -43,6 +45,8 @@ func gatherOptions() (options, error) {
 
 func main() {
 	logger := logrus.New()
+	controllerruntime.SetLogger(zap.New(zap.UseDevMode(true)))
+
 	o, err := gatherOptions()
 	if err != nil {
 		logger.WithError(err).Fatal("invalid options")
@@ -61,8 +65,20 @@ func main() {
 	}()
 
 	calculationCh := make(chan v1.Calculation)
-	cacheOpts := cache.Options{DefaultNamespaces: map[string]cache.Config{o.namespace: {}}}
-	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{Cache: cacheOpts})
+	mgr, err := controllerruntime.NewManager(clusterConfig, controllerruntime.Options{
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				o.namespace: {},
+			},
+		},
+		NewCache: func(cfg *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultNamespaces = map[string]cache.Config{
+				o.namespace: {},
+			}
+			return cache.New(cfg, opts)
+		},
+	})
+
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to construct manager")
 	}

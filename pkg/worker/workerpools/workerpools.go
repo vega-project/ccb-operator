@@ -116,6 +116,28 @@ func registerWorkerInPool(ctx context.Context, logger *logrus.Entry, client ctrl
 	return nil
 }
 
+func RemoveWorkerFromPool(ctx context.Context, logger *logrus.Entry, client ctrlruntimeclient.Client, workerPool, nodename, namespace string) error {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &workersv1.WorkerPool{}
+		err := client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: namespace, Name: workerPool}, pool)
+		if err != nil {
+			return fmt.Errorf("failed to get workerpool %s in namespace %s: %w", workerPool, namespace, err)
+		}
+
+		if pool.Spec.Workers != nil {
+			delete(pool.Spec.Workers, nodename)
+			logger.WithField("node-name", nodename).Info("Removing worker from WorkerPool...")
+			if err := client.Update(ctx, pool); err != nil {
+				return fmt.Errorf("failed to update WorkerPool %s: %w", pool.Name, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 type reconciler struct {
 	logger     *logrus.Entry
 	client     ctrlruntimeclient.Client

@@ -15,10 +15,12 @@ import (
 	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/util"
 	"github.com/vega-project/ccb-operator/pkg/worker/executor"
+	"github.com/vega-project/ccb-operator/pkg/worker/workerpools"
 )
 
 type Operator struct {
 	ctx                    context.Context
+	mgr                    controllerruntime.Manager
 	logger                 *logrus.Entry
 	cfg                    *rest.Config
 	calculationsController *Controller
@@ -50,12 +52,24 @@ func (op *Operator) Initialize() error {
 	stepUpdaterChan := make(chan util.Result)
 	calcErrorChan := make(chan string)
 
-	cacheOpts := cache.Options{DefaultNamespaces: map[string]cache.Config{op.namespace: {}}}
-	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{Cache: cacheOpts})
+	mgr, err := controllerruntime.NewManager(op.cfg, controllerruntime.Options{
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				op.namespace: {},
+			},
+		},
+		NewCache: func(cfg *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultNamespaces = map[string]cache.Config{
+				op.namespace: {},
+			}
+			return cache.New(cfg, opts)
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to construct manager: %w", err)
 	}
 
+	op.mgr = mgr
 	grpcClient, err := grpc.NewClient(op.grpcAddress)
 	if err != nil {
 		return fmt.Errorf("failed to construct grpc client: %w", err)
@@ -79,5 +93,9 @@ func (op *Operator) Run(stopCh <-chan struct{}) error {
 
 	<-stopCh
 	op.logger.Info("Shutting down controllers")
+	if err := workerpools.RemoveWorkerFromPool(op.ctx, op.logger, op.mgr.GetClient(), op.workerPool, op.nodename, op.namespace); err != nil {
+		op.logger.WithError(err).Error("Failed to deregister worker from pool")
+	}
+
 	return nil
 }

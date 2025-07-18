@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/vega-project/ccb-operator/pkg/grpc"
 	"github.com/vega-project/ccb-operator/pkg/util"
@@ -53,6 +54,7 @@ func validateOptions(o options) error {
 }
 
 func main() {
+	controllerruntime.SetLogger(zap.New(zap.UseDevMode(true)))
 	logrus.SetFormatter(&logrus.TextFormatter{
 		DisableQuote: true,
 	})
