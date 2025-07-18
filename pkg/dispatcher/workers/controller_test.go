@@ -207,8 +207,9 @@ func TestDeleteAssignedCalculations(t *testing.T) {
 		errorMsg     string
 	}{
 		{
-			id:      "no calculation to delete",
-			podName: "test-pod",
+			id:       "no calculation to delete",
+			podName:  "test-pod",
+			expected: []v1.Calculation{},
 		},
 		{
 			id:      "one calculation to delete",

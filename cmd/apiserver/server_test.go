@@ -181,7 +181,8 @@ func TestGetCalculations(t *testing.T) {
 		expected            []v1.Calculation
 	}{
 		{
-			id: "get no calculation",
+			id:       "get no calculation",
+			expected: []v1.Calculation{},
 		},
 		{
 			id: "get one calculation",
@@ -645,7 +646,8 @@ func TestGetWorkerPools(t *testing.T) {
 		expected           []workersv1.WorkerPool
 	}{
 		{
-			id: "get no workerpool",
+			id:       "get no workerpool",
+			expected: []workersv1.WorkerPool{},
 		},
 		{
 			id: "get one workerpool",

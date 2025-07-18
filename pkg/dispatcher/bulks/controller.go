@@ -2,16 +2,17 @@ package bulks
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -111,7 +112,12 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 		logrus.WithError(err).Error("error while reconciling calculations")
 	}
 
-	if err := r.client.Update(ctx, bulk); err != nil {
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := r.client.Get(ctx, ctrlruntimeclient.ObjectKey{Namespace: req.Namespace, Name: req.Name}, bulk); err != nil {
+			return err
+		}
+		return r.client.Update(ctx, bulk)
+	}); err != nil {
 		return fmt.Errorf("failed to update calculation bulk: %w", err)
 	}
 
@@ -139,7 +145,7 @@ func (r *reconciler) reconcile(ctx context.Context, req reconcile.Request, logge
 
 	calculations := assignCalculationsToWorkers(bulk, workerpool, req.Namespace)
 	for _, calc := range calculations {
-		r.logger.WithField("calc-name", calc.Name).Info("Creating calculation.")
+		r.logger.WithField("calc-name", calc.Name).WithField("worker", calc.Assign).Info("Creating calculation.")
 		if err := r.client.Create(ctx, &calc); err != nil {
 			r.logger.WithError(err).Error("couldn't create calculation")
 		}
@@ -158,7 +164,7 @@ func (r *reconciler) reconcileCalculations(calcs map[string]bulkv1.Calculation, 
 
 		resp, err := r.gRPCClient.GetData(params)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if status.Code(err) == codes.NotFound {
 				continue
 			}
 			errs = append(errs, fmt.Errorf("couldn't get results for calculation %s: %w", key, err))
@@ -189,29 +195,28 @@ func (r *reconciler) reconcileCalculations(calcs map[string]bulkv1.Calculation, 
 func assignCalculationsToWorkers(bulk *bulkv1.CalculationBulk, workerpool *workersv1.WorkerPool, namespace string) []v1.Calculation {
 	var calculations []v1.Calculation
 	calculationItems := util.GetSortedCreatedCalculations(bulk.Calculations).Items
-	calculationIndex := 0
 
-	// Sort workers
-	workerKeys := make([]string, 0, len(workerpool.Spec.Workers))
-	for k := range workerpool.Spec.Workers {
-		workerKeys = append(workerKeys, k)
+	var availableWorkers []string
+	for workerName, worker := range workerpool.Spec.Workers {
+		if worker.State == workersv1.WorkerAvailableState {
+			availableWorkers = append(availableWorkers, workerName)
+		}
 	}
-	sort.Strings(workerKeys)
+	sort.Strings(availableWorkers)
+	workerIndex := 0
+	for _, item := range calculationItems {
+		if item.Calculation.Phase == "" && workerIndex < len(availableWorkers) {
+			workerName := availableWorkers[workerIndex]
+			worker := workerpool.Spec.Workers[workerName]
 
-	for _, w := range workerKeys {
-		worker := workerpool.Spec.Workers[w]
-		if worker.State == workersv1.WorkerAvailableState && calculationIndex < len(calculationItems) {
-			item := calculationItems[calculationIndex]
-			if item.Calculation.Phase == "" {
-				calculation := newCalculationForBulk(*bulk, item.Calculation, namespace, worker.Name, bulk.WorkerPool, map[string]string{
-					util.BulkLabel:            bulk.Name,
-					util.CalculationNameLabel: item.Name,
-					util.CalcRootFolder:       bulk.RootFolder,
-					util.AssignWorkerLabel:    worker.Name,
-				})
-				calculations = append(calculations, *calculation)
-				calculationIndex++
-			}
+			calculation := newCalculationForBulk(*bulk, item.Calculation, namespace, worker.Name, bulk.WorkerPool, map[string]string{
+				util.BulkLabel:            bulk.Name,
+				util.CalculationNameLabel: item.Name,
+				util.CalcRootFolder:       bulk.RootFolder,
+				util.AssignWorkerLabel:    worker.Name,
+			})
+			calculations = append(calculations, *calculation)
+			workerIndex++
 		}
 	}
 	return calculations

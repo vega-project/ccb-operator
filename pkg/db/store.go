@@ -56,7 +56,7 @@ func (s *calculationResultsStore) GetData(ctx context.Context, parameters map[st
 
 	var result CalculationResults
 	if err := query.First(&result).Error; err != nil {
-		return nil, fmt.Errorf("failed to find CalculationResults: %w", err)
+		return nil, err
 	}
 
 	return &result, nil
